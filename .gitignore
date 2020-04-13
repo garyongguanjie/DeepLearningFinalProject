@@ -1,0 +1,12 @@
+__pycache__/
+train_features/
+val_features/
+*.py[cod]
+*$py.class
+*.npy
+*.zip
+.DS_Store
+settings.json
+.vscode
+*.pth
+*.pt
