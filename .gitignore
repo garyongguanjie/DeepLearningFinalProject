@@ -10,3 +10,4 @@ settings.json
 .vscode
 *.pth
 *.pt
+.ipynb_checkpoints
