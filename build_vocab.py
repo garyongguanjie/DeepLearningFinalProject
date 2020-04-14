@@ -66,4 +66,7 @@ def main(caption_path,threshold,vocab_path):
 
 if __name__ == '__main__':
     import config
-    main(config.TRAIN_JSON_PATH,threshold=4,config.VOCAB_PATH)
+    import os
+    if not os.path.isdir('./data'):
+        os.mkdir('./data')
+    main(config.TRAIN_JSON_PATH,20,config.VOCAB_PATH)

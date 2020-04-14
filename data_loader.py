@@ -14,7 +14,7 @@ from pycocotools.coco import COCO
 
 class CocoDataset(data.Dataset):
     """COCO Custom Dataset compatible with torch.utils.data.DataLoader."""
-    def __init__(self, root, json, vocab, transform=None):
+    def __init__(self, root, json, vocab):
         """Set the path for images, captions and vocabulary wrapper.
         
         Args:
@@ -27,7 +27,6 @@ class CocoDataset(data.Dataset):
         self.coco = COCO(json)
         self.ids = list(self.coco.anns.keys())
         self.vocab = vocab
-        self.transform = transform
 
     def __getitem__(self, index):
         """Returns one data pair (image and caption)."""
@@ -83,13 +82,13 @@ def collate_fn(data):
         targets[i, :end] = cap[:end]        
     return images, targets, lengths
 
-def get_loader(root, json, vocab, transform, batch_size, shuffle, num_workers):
+def get_loader(root, json, vocab, batch_size, shuffle, num_workers):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
     # COCO caption dataset
     coco = CocoDataset(root=root,
                        json=json,
                        vocab=vocab,
-                       transform=transform)
+                        )
     
     # Data loader for COCO dataset
     # This will return (images, captions, lengths) for each iteration.
