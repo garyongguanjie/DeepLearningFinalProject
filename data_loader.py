@@ -99,5 +99,5 @@ def get_loader(root, json, vocab, batch_size, shuffle, num_workers):
                                               batch_size=batch_size,
                                               shuffle=shuffle,
                                               num_workers=num_workers,
-                                              collate_fn=collate_fn)
+                                              collate_fn=collate_fn,pin_memory=True)
     return data_loader
