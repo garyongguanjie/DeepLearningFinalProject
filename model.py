@@ -2,13 +2,30 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 from torch.nn.utils.rnn import pack_padded_sequence
+import torch.nn.functional as F
 
 class BahdanauAttention(nn.Module):
-    def __init__(self,units,embedding_dim):
+    def __init__(self,embedding_dim,hidden_size):
         super().__init__()
-        self.w1 = nn.Linear(embedding_dim,units)
-        self.w2 = nn.Linear(embedding_dim,units)
+        """
+        embedding_dim = dimension of words must be same as output dim of pictures
+        hidden_size = dim of hidden size of lstm/gru
+        """
+        self.w1 = nn.Linear(embedding_dim,embedding_dim)
+        self.w2 = nn.Linear(hidden_size,embedding_dim)
         self.v = nn.Linear(embedding_dim,1)
+
+    def forward(self,features,hidden):
+        
+        hidden_time = hidden.unsqueeze(1)
+        attention_score = torch.tanh(self.w1(features)+self.w2(hidden_time))
+        attention_weights = F.softmax(self.v(attention_score),dim=1)
+        context_vector = features * attention_weights
+        context_vector = torch.sum(context_vector,dim=1)
+
+        return context_vector,attention_weights
+
+
     
 
 class EncoderCNN(nn.Module):
@@ -18,39 +35,67 @@ class EncoderCNN(nn.Module):
     def __init__(self,input_size,embedding_dim=256):
         """
         input_size = num of channels from cnn
-        use fc to convert 512 x 49 -> 49 x embedding_dim
+        use fc to convert 512 x 49 -> embedding_dim x 49 
+        Can think of it as compressing number of channels or increasing number of channels
         """
         super().__init__()
         self.fc = nn.Linear(input_size,embedding_dim)
-        self.bn = nn.BatchNorm1d(embedding_dim)
-        self.relu = nn.Relu(inplace=True)
+        self.bn = nn.BatchNorm1d(49)
+        self.relu = nn.ReLU(inplace=True)
     def forward(self,x):
         x = self.fc(x)
         x = self.bn(x)
         x = self.relu(x)
         return x
 
+
 class DecoderRNN(nn.Module):
-    """
-    source:https://github.com/yunjey/pytorch-tutorial/blob/master/tutorials/03-advanced/image_captioning/model.py
-    """
-    def __init__(self, embed_size, hidden_size, vocab_size, num_layers, max_seq_length=20):
+
+    def __init__(self, embed_size, hidden_size, vocab_size):
         """Set the hyper-parameters and build the layers."""
         super(DecoderRNN, self).__init__()
-        self.embed = nn.Embedding(vocab_size, embed_size)
-        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
+        self.hidden_size = hidden_size
+        self.embed = nn.Embedding(vocab_size, embed_size) #this embeddings will be learned
+        self.lstm = nn.LSTMCell(embed_size, hidden_size)
         self.linear = nn.Linear(hidden_size, vocab_size)
-        self.max_seg_length = max_seq_length
-        
-    def forward(self, features, captions, lengths):
+        self.attention = BahdanauAttention(embed_size,hidden_size)
+    
+    def forward(self,images,captions,lenghts):
         """Decode image feature vectors and generates captions."""
-        embeddings = self.embed(captions)
-        embeddings = torch.cat((features.unsqueeze(1), embeddings), 1)
-        packed = pack_padded_sequence(embeddings, lengths, batch_first=True) 
-        hiddens, _ = self.lstm(packed)
+        batch_size = images.size(0)
+        num_pixels = images.size(1)
+        embeddings = self.embed(captions) # embed words
+        lenghts = torch.Tensor(lenghts)
+        decode_lengths = (lengths - 1).tolist()
+        
+        h,c = self.init_hidden()
+
+        #device here will us the nearest scope
+        predictions = torch.zeros(batch_size, max(decode_lengths), vocab_size).to(device)
+        alphas = torch.zeros(batch_size, max(decode_lengths), num_pixels).to(device)
+
+        for t in range(max(decode_lengths)):
+            batch_size_t = sum([l > t for l in decode_lengths])
+            attention_weighted_encoding, alpha = self.attention(images[:batch_size_t],
+                                                                h[:batch_size_t])
+            h, c = self.lstm(
+                torch.cat([embeddings[:batch_size_t, t, :], attention_weighted_encoding], dim=1),
+                (h[:batch_size_t], c[:batch_size_t]))
+
+
+        context_vector,attention_weights = self.attention(images,hidden)
+        x = torch.concat(context_vector.unsqueeze(1),embeddings,dim=-1)
+
+
+        hiddens, cell = self.lstm(x)
         outputs = self.linear(hiddens[0])
         return outputs
     
+    def init_hidden(self):
+        h = torch.zeros_like(self.hidden_size)
+        c = torch.zeros_like(self.hidden_size)
+        return h,c
+
     def sample(self, features, states=None):
         """Generate captions for given image features using greedy search."""
         sampled_ids = []
