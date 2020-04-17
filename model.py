@@ -4,6 +4,8 @@ import torchvision.models as models
 from torch.nn.utils.rnn import pack_padded_sequence
 import torch.nn.functional as F
 
+device = torch.device("cpu")
+
 class BahdanauAttention(nn.Module):
     def __init__(self,embedding_dim,hidden_size):
         super().__init__()
@@ -55,24 +57,26 @@ class DecoderRNN(nn.Module):
         """Set the hyper-parameters and build the layers."""
         super(DecoderRNN, self).__init__()
         self.hidden_size = hidden_size
+        self.vocab_size = vocab_size
         self.embed = nn.Embedding(vocab_size, embed_size) #this embeddings will be learned
-        self.lstm = nn.LSTMCell(embed_size, hidden_size)
-        self.linear = nn.Linear(hidden_size, vocab_size)
+        self.lstm = nn.LSTMCell(embed_size+embed_size, hidden_size)
+        self.fc = nn.Linear(hidden_size, vocab_size)
+        self.dropout = nn.Dropout(0.5)
         self.attention = BahdanauAttention(embed_size,hidden_size)
     
-    def forward(self,images,captions,lenghts):
+    def forward(self,images,captions,lengths):
         """Decode image feature vectors and generates captions."""
         batch_size = images.size(0)
         num_pixels = images.size(1)
         embeddings = self.embed(captions) # embed words
-        lenghts = torch.Tensor(lenghts)
+        lengths = torch.Tensor(lengths).long()
         decode_lengths = (lengths - 1).tolist()
         
-        h,c = self.init_hidden()
+        h,c = self.init_hidden(batch_size)
 
         #device here will us the nearest scope
-        predictions = torch.zeros(batch_size, max(decode_lengths), vocab_size).to(device)
-        alphas = torch.zeros(batch_size, max(decode_lengths), num_pixels).to(device)
+        predictions = torch.zeros(batch_size, max(lengths), self.vocab_size).to(device)
+        alphas = torch.zeros(batch_size, max(lengths), num_pixels).to(device)
 
         for t in range(max(decode_lengths)):
             batch_size_t = sum([l > t for l in decode_lengths])
@@ -81,19 +85,17 @@ class DecoderRNN(nn.Module):
             h, c = self.lstm(
                 torch.cat([embeddings[:batch_size_t, t, :], attention_weighted_encoding], dim=1),
                 (h[:batch_size_t], c[:batch_size_t]))
+            
 
+            preds = self.fc(self.dropout(h))  # (batch_size_t, vocab_size)
+            predictions[:batch_size_t, t, :] = preds
+            alphas[:batch_size_t, t, :] = alpha.squeeze(2)
 
-        context_vector,attention_weights = self.attention(images,hidden)
-        x = torch.concat(context_vector.unsqueeze(1),embeddings,dim=-1)
-
-
-        hiddens, cell = self.lstm(x)
-        outputs = self.linear(hiddens[0])
-        return outputs
+        return predictions,captions,lengths,alphas
     
-    def init_hidden(self):
-        h = torch.zeros_like(self.hidden_size)
-        c = torch.zeros_like(self.hidden_size)
+    def init_hidden(self,batch_size):
+        h = torch.zeros(batch_size,self.hidden_size)
+        c = torch.zeros(batch_size,self.hidden_size)
         return h,c
 
     def sample(self, features, states=None):
