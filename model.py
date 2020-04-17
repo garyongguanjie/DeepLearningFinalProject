@@ -45,6 +45,7 @@ class EncoderCNN(nn.Module):
         self.bn = nn.BatchNorm1d(49)
         self.relu = nn.ReLU(inplace=True)
     def forward(self,x):
+        x = x.permute(0,2,1)
         x = self.fc(x)
         x = self.bn(x)
         x = self.relu(x)
@@ -90,7 +91,7 @@ class DecoderRNN(nn.Module):
             preds = self.fc(self.dropout(h))  # (batch_size_t, vocab_size)
             predictions[:batch_size_t, t, :] = preds
             alphas[:batch_size_t, t, :] = alpha.squeeze(2)
-
+        #alphas are the attention weights
         return predictions,captions,lengths,alphas
     
     def init_hidden(self,batch_size):
