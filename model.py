@@ -4,18 +4,18 @@ import torchvision.models as models
 from torch.nn.utils.rnn import pack_padded_sequence
 import torch.nn.functional as F
 
-device = torch.device("cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
 
 class BahdanauAttention(nn.Module):
-    def __init__(self,embedding_dim,hidden_size):
+    def __init__(self,image_dim,hidden_size):
         super().__init__()
         """
-        embedding_dim = dimension of words must be same as output dim of pictures
+        image_dim = num of 'channels' from image encoder
         hidden_size = dim of hidden size of lstm/gru
         """
-        self.w1 = nn.Linear(embedding_dim,embedding_dim)
-        self.w2 = nn.Linear(hidden_size,embedding_dim)
-        self.v = nn.Linear(embedding_dim,1)
+        self.w1 = nn.Linear(image_dim,image_dim)
+        self.w2 = nn.Linear(hidden_size,image_dim)
+        self.v = nn.Linear(image_dim,1)
 
     def forward(self,features,hidden):
         
@@ -34,14 +34,14 @@ class EncoderCNN(nn.Module):
     """
     Just pass in features from pickle files
     """
-    def __init__(self,input_size,embedding_dim=256):
+    def __init__(self,input_size,image_dim=512):
         """
         input_size = num of channels from cnn
         use fc to convert 512 x 49 -> embedding_dim x 49 
         Can think of it as compressing number of channels or increasing number of channels
         """
         super().__init__()
-        self.fc = nn.Linear(input_size,embedding_dim)
+        self.fc = nn.Linear(input_size,image_dim)
         self.bn = nn.BatchNorm1d(49)
         self.relu = nn.ReLU(inplace=True)
     def forward(self,x):
@@ -54,16 +54,16 @@ class EncoderCNN(nn.Module):
 
 class DecoderRNN(nn.Module):
 
-    def __init__(self, embed_size, hidden_size, vocab_size):
+    def __init__(self, image_dim,embed_size, hidden_size, vocab_size):
         """Set the hyper-parameters and build the layers."""
         super(DecoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
         self.embed = nn.Embedding(vocab_size, embed_size) #this embeddings will be learned
-        self.lstm = nn.LSTMCell(embed_size+embed_size, hidden_size)
+        self.lstm = nn.LSTMCell(embed_size+image_dim, hidden_size)
         self.fc = nn.Linear(hidden_size, vocab_size)
         self.dropout = nn.Dropout(0.5)
-        self.attention = BahdanauAttention(embed_size,hidden_size)
+        self.attention = BahdanauAttention(image_dim,hidden_size)
     
     def forward(self,images,captions,lengths):
         """Decode image feature vectors and generates captions."""
@@ -75,7 +75,6 @@ class DecoderRNN(nn.Module):
         
         h,c = self.init_hidden(batch_size)
 
-        #device here will us the nearest scope
         predictions = torch.zeros(batch_size, max(lengths), self.vocab_size).to(device)
         alphas = torch.zeros(batch_size, max(lengths), num_pixels).to(device)
 
@@ -95,11 +94,12 @@ class DecoderRNN(nn.Module):
         return predictions,captions,lengths,alphas
     
     def init_hidden(self,batch_size):
-        h = torch.zeros(batch_size,self.hidden_size)
-        c = torch.zeros(batch_size,self.hidden_size)
+        h = torch.zeros(batch_size,self.hidden_size).to(device)
+        c = torch.zeros(batch_size,self.hidden_size).to(device)
         return h,c
 
     def sample(self, features, states=None):
+        """DOES NOT WORK I THINK"""
         """Generate captions for given image features using greedy search."""
         sampled_ids = []
         inputs = features.unsqueeze(1)
