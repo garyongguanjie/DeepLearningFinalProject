@@ -60,6 +60,11 @@ class DecoderRNN(nn.Module):
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
         self.embed = nn.Embedding(vocab_size, embed_size) #this embeddings will be learned
+        
+        # for learning start hidden states from images
+        self.init_c = nn.Linear(image_dim,hidden_size)
+        self.init_h = nn.Linear(image_dim,hidden_size)
+        
         self.lstm = nn.LSTMCell(embed_size+image_dim, hidden_size)
         self.fc = nn.Linear(hidden_size, vocab_size)
         self.dropout = nn.Dropout(0.5)
@@ -73,7 +78,7 @@ class DecoderRNN(nn.Module):
         lengths = torch.Tensor(lengths).long()
         decode_lengths = (lengths - 1).tolist()
         
-        h,c = self.init_hidden(batch_size)
+        h,c = self.init_hidden(batch_size,images)
 
         predictions = torch.zeros(batch_size, max(lengths), self.vocab_size).to(device)
         alphas = torch.zeros(batch_size, max(lengths), num_pixels).to(device)
@@ -93,9 +98,10 @@ class DecoderRNN(nn.Module):
         #alphas are the attention weights
         return predictions,captions,lengths,alphas
     
-    def init_hidden(self,batch_size):
-        h = torch.zeros(batch_size,self.hidden_size).to(device)
-        c = torch.zeros(batch_size,self.hidden_size).to(device)
+    def init_hidden(self,batch_size,images):
+        images = images.mean(dim=1)
+        h = self.init_h(images)
+        c = self.init_c(images)
         return h,c
 
     def sample(self, features, states=None):
