@@ -74,17 +74,18 @@ class DecoderRNN(nn.Module):
         """Decode image feature vectors and generates captions."""
         batch_size = images.size(0)
         num_pixels = images.size(1)
-        embeddings = self.embed(captions) # embed words
+        embeddings = self.embed(captions) # bs,max_seq_length,embed_dimension
         lengths = torch.Tensor(lengths).long()
         decode_lengths = (lengths - 1).tolist()
         
         h,c = self.init_hidden(batch_size,images)
 
-        predictions = torch.zeros(batch_size, max(lengths), self.vocab_size).to(device)
-        alphas = torch.zeros(batch_size, max(lengths), num_pixels).to(device)
+        predictions = torch.zeros(batch_size, max(decode_lengths), self.vocab_size).to(device)
+        alphas = torch.zeros(batch_size, max(decode_lengths), num_pixels).to(device)
 
         for t in range(max(decode_lengths)):
             batch_size_t = sum([l > t for l in decode_lengths])
+
             attention_weighted_encoding, alpha = self.attention(images[:batch_size_t],
                                                                 h[:batch_size_t])
             h, c = self.lstm(
@@ -96,7 +97,7 @@ class DecoderRNN(nn.Module):
             predictions[:batch_size_t, t, :] = preds
             alphas[:batch_size_t, t, :] = alpha.squeeze(2)
         #alphas are the attention weights
-        return predictions,captions,lengths,alphas
+        return predictions,captions,decode_lengths,alphas
     
     def init_hidden(self,batch_size,images):
         images = images.mean(dim=1)
