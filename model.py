@@ -27,17 +27,42 @@ class BahdanauAttention(nn.Module):
 
         return context_vector,attention_weights
 
+class CNNfull(nn.Module):
+    """
+    passes in full image
+    """
+    def __init__(self,input_size,fine_tune=3):
+        """
+        input_size = num_channels from cnn
+        fine_tune: num of blocks onwards of which we update params of resnet
+        Eg if fine tune =3: only 3rd block onwards of resnet will have grad updated
+        """
+        super().__init__()
+        model = models.resnet50(pretrained=True)
+        self.model = nn.Sequential(*list(model.children())[:-2]) #chop off last two layers
+        
+        for params in self.model.parameters():
+            params.requires_grad = False
 
-    
+        for children in list(self.model.children())[fine_tune:]:
+            for params in children.parameters():
+                params.requires_grad = True
+
+    def forward(self,x):
+        x = self.model(x) # bs x 2048 x 7 x 7
+        bs,c,h,w = x.shape
+        x = x.view(bs,-1,h*w) # bs x 2048 x 49
+        x = x.permute(0,2,1) # bs x 49 x 2048
+        return x
 
 class EncoderCNN(nn.Module):
     """
     Just pass in features from pickle files
     """
-    def __init__(self,input_size,image_dim=512):
+    def __init__(self,input_size,image_dim):
         """
         input_size = num of channels from cnn
-        use fc to convert 512 x 49 -> embedding_dim x 49 
+        use fc to convert 512 x 49 -> image_dim x 49 
         Can think of it as compressing number of channels or increasing number of channels
         """
         super().__init__()
