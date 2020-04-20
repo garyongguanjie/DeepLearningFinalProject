@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+    <!-- <script src='https://code.jquery.com/jquery-git.js'></script> -->
+    <head>
+        <title>50.039 Deep Learning Project Image Captioning</title>
+        <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static', filename='styles/home.css') }}">
+    </head>
+    <body>
+        <div id="Wrapper">
+            <a href='/' class="box" style='text-decoration: none; color: inherit;'>
+                <b>
+                    50.039 Deep Learning Project Image Captioning
+                </b>
+            </a>
+        </div>
+        <div id="Wrapper">
+            <div class="box">
+                <form class="form" method="post" enctype="multipart/form-data">
+                    <div class="upload">
+                        <input id="File" type="file" name="file" />
+                        <img id="Image" class="resize" src="static/styles/picture.png">
+                        <p id="Instruction">
+                            Drop picture here or click to upload
+                        </p>
+                    </div>
+                    <button class="submit" type="submit">Get Caption</button>
+                </form>
+            </div>
+        </div>
+    </body>
+    <script type="text/javascript">
+        window.onload = function(){
+            var fileToRead = document.getElementById('File');
+            fileToRead.addEventListener('change', function(event){
+                var files = fileToRead.files;
+                document.getElementById('Image').src = window.URL.createObjectURL(files[0]);
+                if (document.getElementById('Instruction')){
+                    document.getElementById('Image').style.height = "initial";
+                    document.getElementById('Image').style.width = "initial";
+                    document.getElementById('Image').style.marginTop = "0px";
+                    document.getElementById('Image').style.maxWidth = "100%";
+                    document.getElementById('Image').style.maxHeight = "100%";
+                    document.getElementById('Instruction').parentNode.removeChild(document.getElementById('Instruction'));
+                };
+            }, false);
+        };
+    </script>
+</html>

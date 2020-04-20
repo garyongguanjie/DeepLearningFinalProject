@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>50.039 Deep Learning Project Image Captioning</title>
+        <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/caption.css') }}">
+    </head>
+    <body>
+        <div id="Wrapper">
+            <a href='/' class="box" style='text-decoration: none; color: inherit;'>
+                <b>
+                    50.039 Deep Learning Project Image Captioning
+                </b>
+            </a>
+        </div>
+        <div id="Wrapper">
+            <div class="box">
+                <div class="img_box">
+                    <div class="show">
+                        <img src="{{ uri }}">
+                    </div>
+                    <div class="caption">
+                        (Caption)
+                    </div>
+                    <a class="back" href='/' style='text-decoration: none; color: inherit;'>
+                        Try Another Image
+                    </a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
