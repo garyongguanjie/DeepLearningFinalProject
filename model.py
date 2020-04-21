@@ -31,7 +31,7 @@ class CNNfull(nn.Module):
     """
     passes in full image
     """
-    def __init__(self,input_size,fine_tune=3):
+    def __init__(self,fine_tune=3):
         """
         input_size = num_channels from cnn
         fine_tune: num of blocks onwards of which we update params of resnet
@@ -139,7 +139,8 @@ class DecoderRNN(nn.Module):
 
         predictions = torch.zeros(batch_size,max_seq_length, self.vocab_size).to(device)
         alphas = torch.zeros(batch_size,max_seq_length, num_pixels).to(device)
-        
+        lengths = torch.zeros(batch_size).to(device)
+
         embeddings = self.embed(torch.ones(batch_size).long().to(device))
 
         for t in range(max_seq_length):
@@ -151,9 +152,13 @@ class DecoderRNN(nn.Module):
             
             preds = self.fc(h)  # (batch_size_t, vocab_size)
 
+
             predictions[:, t, :] = preds
-            embeddings = self.embed(preds.argmax(dim=1))
-    
+            preds = preds.argmax(dim=1)
+
+            embeddings = self.embed(preds)
+            lengths[(preds == 2) & (lengths==0)] = t + 1
+
             alphas[:, t, :] = alpha.squeeze(2)
         #alphas are the attention weights
-        return predictions,None,None,alphas
+        return predictions,lengths,alphas
