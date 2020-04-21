@@ -93,6 +93,7 @@ def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,
         epoch_loss += loss.item()
         epoch_correct += correct
         epoch_words += words 
+
     return epoch_loss,epoch_correct,epoch_words
 
 
@@ -205,7 +206,7 @@ def main(args):
     # Train the models
     num_epochs = 10
     view_train_captions = False # View train captions
-    view_val_captions = True # View val captions
+    view_val_captions = False # View val captions
 
     for epoch in range(num_epochs):
         train_loss = 0    
@@ -215,17 +216,9 @@ def main(args):
         val_correct = 0
         val_words = 0
 
-        loss,correct,words = train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,view_train_captions=view_train_captions)
-
-        train_loss += loss
-        train_correct += correct
-        train_words += words
-
-        loss,correct,words = val_epoch(val_loader,device,encoder,decoder,criterion,vocab,epoch,view_val_captions=view_val_captions)
+        train_loss,train_correct,train_words = train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,view_train_captions=view_train_captions)
         
-        val_loss += loss
-        val_correct += correct
-        val_words += words
+        val_loss,val_correct,val_words = val_epoch(val_loader,device,encoder,decoder,criterion,vocab,epoch,view_val_captions=view_val_captions)
 
         average_train_loss = train_loss / (len(train_loader))
         train_losses.append(average_train_loss)

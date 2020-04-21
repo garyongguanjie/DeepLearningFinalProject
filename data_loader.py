@@ -12,7 +12,6 @@ from PIL import Image
 from build_vocab import Vocabulary
 from pycocotools.coco import COCO
 
-
 class CocoDataset(data.Dataset):
     """COCO Custom Dataset compatible with torch.utils.data.DataLoader."""
     def __init__(self, root, json, vocab, transform=None):
