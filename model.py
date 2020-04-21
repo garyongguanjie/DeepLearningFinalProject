@@ -130,17 +130,30 @@ class DecoderRNN(nn.Module):
         c = self.init_c(images)
         return h,c
 
-    def sample(self, features, states=None):
-        """DOES NOT WORK I THINK"""
-        """Generate captions for given image features using greedy search."""
-        sampled_ids = []
-        inputs = features.unsqueeze(1)
-        for i in range(self.max_seg_length):
-            hiddens, states = self.lstm(inputs, states)          # hiddens: (batch_size, 1, hidden_size)
-            outputs = self.linear(hiddens.squeeze(1))            # outputs:  (batch_size, vocab_size)
-            _, predicted = outputs.max(1)                        # predicted: (batch_size)
-            sampled_ids.append(predicted)
-            inputs = self.embed(predicted)                       # inputs: (batch_size, embed_size)
-            inputs = inputs.unsqueeze(1)                         # inputs: (batch_size, 1, embed_size)
-        sampled_ids = torch.stack(sampled_ids, 1)                # sampled_ids: (batch_size, max_seq_length)
-        return sampled_ids
+    def inference(self, images,max_seq_length=30):
+        """Decode image feature vectors and generates captions."""
+        batch_size = images.size(0)
+        num_pixels = images.size(1)
+        
+        h,c = self.init_hidden(batch_size,images)
+
+        predictions = torch.zeros(batch_size,max_seq_length, self.vocab_size).to(device)
+        alphas = torch.zeros(batch_size,max_seq_length, num_pixels).to(device)
+        
+        embeddings = self.embed(torch.ones(batch_size).long().to(device))
+
+        for t in range(max_seq_length):
+
+            attention_weighted_encoding, alpha = self.attention(images,h)
+            h, c = self.lstm(
+                torch.cat([embeddings, attention_weighted_encoding], dim=1),
+                (h, c))
+            
+            preds = self.fc(h)  # (batch_size_t, vocab_size)
+
+            predictions[:, t, :] = preds
+            embeddings = self.embed(preds.argmax(dim=1))
+    
+            alphas[:, t, :] = alpha.squeeze(2)
+        #alphas are the attention weights
+        return predictions,None,None,alphas
