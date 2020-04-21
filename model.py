@@ -15,12 +15,23 @@ class BahdanauAttention(nn.Module):
         """
         self.w1 = nn.Linear(image_dim,image_dim)
         self.w2 = nn.Linear(hidden_size,image_dim)
+        self.dropouts = nn.ModuleList([nn.Dropout(0.5) for _ in range(5)])
         self.v = nn.Linear(image_dim,1)
 
     def forward(self,features,hidden):
         
         hidden_time = hidden.unsqueeze(1)
-        attention_score = torch.tanh(self.w1(features)+self.w2(hidden_time))
+        
+        scoring = self.w1(features)+self.w2(hidden_time)
+        for i,dropout in enumerate(self.dropouts):
+            if i == 0:
+                out = dropout(scoring)
+            else:
+                out += dropout(scoring)
+
+        out /= len(self.dropouts)
+
+        attention_score = torch.tanh(out)
         attention_weights = F.softmax(self.v(attention_score),dim=1)
         context_vector = features * attention_weights
         context_vector = torch.sum(context_vector,dim=1)
@@ -92,7 +103,7 @@ class DecoderRNN(nn.Module):
         
         self.lstm = nn.LSTMCell(embed_size+image_dim, hidden_size)
         self.fc = nn.Linear(hidden_size, vocab_size)
-        self.dropout = nn.Dropout(0.5)
+        self.dropouts = nn.ModuleList([nn.Dropout(0.5) for _ in range(5)])
         self.attention = BahdanauAttention(image_dim,hidden_size)
     
     def forward(self,images,captions,lengths):
@@ -117,8 +128,16 @@ class DecoderRNN(nn.Module):
                 torch.cat([embeddings[:batch_size_t, t, :], attention_weighted_encoding], dim=1),
                 (h[:batch_size_t], c[:batch_size_t]))
             
+            #multisample dropout for faster convergence
+            for i,dropout in enumerate(self.dropouts):
+                if i == 0:
+                    out = dropout(h)
+                else:
+                    out += dropout(h)
 
-            preds = self.fc(self.dropout(h))  # (batch_size_t, vocab_size)
+            out /= len(self.dropouts)
+
+            preds = self.fc(out)  # (batch_size_t, vocab_size)
             predictions[:batch_size_t, t, :] = preds
             alphas[:batch_size_t, t, :] = alpha.squeeze(2)
         #alphas are the attention weights

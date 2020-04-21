@@ -84,12 +84,15 @@ def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,
 
         # Calculate loss
         loss = criterion(batch_scores, batch_targets)
-
+        if i%2000==0:
+            print(loss)
         # Backward and optimize
         loss.backward()
         enc_optimizer.step()
         dec_optimizer.step()  
-        
+        enc_scheduler.step()
+        dec_scheduler.step()
+
         epoch_loss += loss.item()
         epoch_correct += correct
         epoch_words += words 
@@ -190,17 +193,19 @@ def main(args):
     # Build models
     image_dim = 2048
     embed_size = 300
-    hidden_size = 300
+    hidden_size = 512
     vocab_size = len(vocab)
 
     encoder = CNNfull().to(device)
     decoder = DecoderRNN(image_dim,embed_size,hidden_size,vocab_size).to(device)
 
     # Loss and optimizer
-    enc_optimizer_lr = 1e-4
-    dec_optimizer_lr = 1e-2
-    enc_optimizer = optim.SGD(encoder.parameters(),lr=enc_optimizer_lr,momentum=0.9)
-    dec_optimizer = optim.SGD(decoder.parameters(),lr=dec_optimizer_lr,momentum=0.9)
+    #lr is maximum chosen from batches
+    enc_optimizer_lr = 2e-4
+    dec_optimizer_lr = 0.002
+    # weight decay values copied from imagenet and seq2seq models
+    enc_optimizer = optim.SGD(encoder.parameters(),lr=enc_optimizer_lr,momentum=0.9,weight_decay=5e-4)
+    dec_optimizer = optim.SGD(decoder.parameters(),lr=dec_optimizer_lr,momentum=0.9,weight_decay=1e-6)
     criterion = nn.CrossEntropyLoss()
 
     # Train the models
@@ -208,6 +213,9 @@ def main(args):
     view_train_captions = False # View train captions
     view_val_captions = False # View val captions
 
+    enc_scheduler = optim.lr_scheduler.OneCycleLR(enc_optimizer,max_lr=enc_optimizer_lr*50,steps_per_epoch=len(train_loader),epochs=num_epochs)
+    dec_scheduler = optim.lr_scheduler.OneCycleLR(dec_optimizer,max_lr=dec_optimizer_lr*50,steps_per_epoch=len(train_loader),epochs=num_epochs)
+    
     for epoch in range(num_epochs):
         train_loss = 0    
         val_loss = 0
@@ -216,7 +224,7 @@ def main(args):
         val_correct = 0
         val_words = 0
 
-        train_loss,train_correct,train_words = train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,view_train_captions=view_train_captions)
+        train_loss,train_correct,train_words = train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,enc_scheduler=enc_scheduler,dec_scheduler=dec_scheduler,view_train_captions=view_train_captions)
         
         val_loss,val_correct,val_words = val_epoch(val_loader,device,encoder,decoder,criterion,vocab,epoch,view_val_captions=view_val_captions)
 
