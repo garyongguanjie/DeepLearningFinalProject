@@ -8,7 +8,6 @@ val_features/
 .DS_Store
 settings.json
 .vscode
-*.pth
 *.pt
 *.pkl
 .ipynb_checkpoints

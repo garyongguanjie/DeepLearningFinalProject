@@ -1,14 +1,15 @@
 from flask import Flask, flash, request, redirect, url_for, render_template, jsonify
 import os
 from base64 import b64encode
+from ResnetFeatureExtractor import ResnetFeatures
 from model import EncoderCNN, DecoderRNN
 import torchvision.transforms as transforms
+from torchvision import models
 from PIL import Image
 import io
 
 def transform_image(image_bytes):
-    my_transforms = transforms.Compose([transforms.Resize(255),
-                                        transforms.CenterCrop(224),
+    my_transforms = transforms.Compose([transforms.Resize((224, 224)),
                                         transforms.ToTensor(),
                                         transforms.Normalize(
                                             [0.485, 0.456, 0.406],
@@ -22,8 +23,16 @@ app = Flask(__name__)
 app.secret_key = "secret key"
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-# encoder = EncoderCNN(512, image_dim)
-# decoder = DecoderRNN(image_dim, embed_size, hidden_size, vocab_size)
+# Initialise models
+image_dim = 256
+embed_size = 300
+hidden_size = 300
+# vocab_size = len(vocab)
+encoder = EncoderCNN(512, image_dim)
+decoder = DecoderRNN(image_dim, embed_size, hidden_size, vocab_size)
+resnet34 = models.resnet34(pretrained=True)
+FeatureExtractor = ResnetFeatures(resnet34)
+FeatureExtractor.eval()
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -47,8 +56,7 @@ def predict():
             img_bytes = f.read()
             tensor = transform_image(image_bytes=img_bytes)
             # encoded_images = encoder(tensor)
-            # preds, captions, decode_lengths, alphas = decoder(encoded_images, captions, lengths)
-            # top_predictions = preds.argmax(dim=2)
+            sampled_ids = decoder.sample(encoded_images)
             # json = jsonify({'json': caption, 'attention_plot': attention_plot})
             encoded = b64encode(img_bytes).decode('utf-8')
             mime = f.content_type
