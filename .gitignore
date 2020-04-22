@@ -1,6 +1,7 @@
 __pycache__/
 train_features/
 val_features/
+new_images/
 *.py[cod]
 *$py.class
 *.npy
@@ -12,3 +13,6 @@ settings.json
 *.pt
 *.pkl
 .ipynb_checkpoints
+*.jpg
+*.jpeg
+*.png
