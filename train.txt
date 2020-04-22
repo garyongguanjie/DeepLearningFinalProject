@@ -1,0 +1,14 @@
+Namespace(train_feature_path='./train_features', train_img_path='../../datasets/coco2014/train2014', train_json_path='../../datasets/coco2014/trainval_coco2014_captions/captions_train2014.json', val_feature_path='./val_features', val_img_path='../../datasets/coco2014/val2014', val_json_path='../../datasets/coco2014/trainval_coco2014_captions/captions_val2014.json', vocab_path='./data/vocab.pkl')
+./data/vocab.pkl
+./val_features
+loading annotations into memory...
+Done (t=0.71s)
+creating index...
+index created!
+loading annotations into memory...
+Done (t=0.37s)
+creating index...
+index created!
+12942
+tensor(8.4623, device='cuda:0', grad_fn=<NllLossBackward>)
+tensor(3.6343, device='cuda:0', grad_fn=<NllLossBackward>)

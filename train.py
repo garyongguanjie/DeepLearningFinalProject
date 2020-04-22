@@ -209,9 +209,9 @@ def main(args):
     criterion = nn.CrossEntropyLoss()
 
     # Train the models
-    num_epochs = 10
+    num_epochs = 3
     view_train_captions = False # View train captions
-    view_val_captions = False # View val captions
+    view_val_captions = True # View val captions
 
     enc_scheduler = optim.lr_scheduler.OneCycleLR(enc_optimizer,max_lr=enc_optimizer_lr*50,steps_per_epoch=len(train_loader),epochs=num_epochs)
     dec_scheduler = optim.lr_scheduler.OneCycleLR(dec_optimizer,max_lr=dec_optimizer_lr*50,steps_per_epoch=len(train_loader),epochs=num_epochs)
@@ -240,9 +240,9 @@ def main(args):
         average_val_acc = val_correct / val_words
         val_acc.append(average_val_acc)  
 
-        if average_train_loss < train_losses[epoch-1]:
-            torch.save(encoder.state_dict(), './weights/encoder_weights.pth')
-            torch.save(decoder.state_dict(), './weights/decoder_weights_epoch.pth')
+        if True:
+            torch.save(encoder.state_dict(), './weights/encoder_weights_epoch{}_loss{:.5f}.pth'.format(epoch, average_val_loss))
+            torch.save(decoder.state_dict(), './weights/decoder_weights_epoch{}_loss{:.5f}.pth'.format(epoch, average_val_loss))
             print("Weights saved at epoch {}".format(epoch))
 
         print("Epoch: {}, Train Loss: {:.5f}, Val Loss: {:.5f}, Train Acc: {:.3f}, Val Acc: {:.3f}".format(epoch, average_train_loss, average_val_loss, average_train_acc, average_val_acc))
