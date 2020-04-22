@@ -15,29 +15,65 @@ class BahdanauAttention(nn.Module):
         """
         self.w1 = nn.Linear(image_dim,image_dim)
         self.w2 = nn.Linear(hidden_size,image_dim)
+        self.dropouts = nn.ModuleList([nn.Dropout(0.5) for _ in range(5)])
         self.v = nn.Linear(image_dim,1)
 
     def forward(self,features,hidden):
         
         hidden_time = hidden.unsqueeze(1)
-        attention_score = torch.tanh(self.w1(features)+self.w2(hidden_time))
+        
+        scoring = self.w1(features)+self.w2(hidden_time)
+        for i,dropout in enumerate(self.dropouts):
+            if i == 0:
+                out = dropout(scoring)
+            else:
+                out += dropout(scoring)
+
+        out /= len(self.dropouts)
+
+        attention_score = torch.tanh(out)
         attention_weights = F.softmax(self.v(attention_score),dim=1)
         context_vector = features * attention_weights
         context_vector = torch.sum(context_vector,dim=1)
 
         return context_vector,attention_weights
 
+class CNNfull(nn.Module):
+    """
+    passes in full image
+    """
+    def __init__(self,fine_tune=3):
+        """
+        input_size = num_channels from cnn
+        fine_tune: num of blocks onwards of which we update params of resnet
+        Eg if fine tune =3: only 3rd block onwards of resnet will have grad updated
+        """
+        super().__init__()
+        model = models.resnet50(pretrained=True)
+        self.model = nn.Sequential(*list(model.children())[:-2]) #chop off last two layers
+        
+        for params in self.model.parameters():
+            params.requires_grad = False
 
-    
+        for children in list(self.model.children())[fine_tune:]:
+            for params in children.parameters():
+                params.requires_grad = True
+
+    def forward(self,x):
+        x = self.model(x) # bs x 2048 x 7 x 7
+        bs,c,h,w = x.shape
+        x = x.view(bs,-1,h*w) # bs x 2048 x 49
+        x = x.permute(0,2,1) # bs x 49 x 2048
+        return x
 
 class EncoderCNN(nn.Module):
     """
     Just pass in features from pickle files
     """
-    def __init__(self,input_size,image_dim=512):
+    def __init__(self,input_size,image_dim):
         """
         input_size = num of channels from cnn
-        use fc to convert 512 x 49 -> embedding_dim x 49 
+        use fc to convert 512 x 49 -> image_dim x 49 
         Can think of it as compressing number of channels or increasing number of channels
         """
         super().__init__()
@@ -67,7 +103,7 @@ class DecoderRNN(nn.Module):
         
         self.lstm = nn.LSTMCell(embed_size+image_dim, hidden_size)
         self.fc = nn.Linear(hidden_size, vocab_size)
-        self.dropout = nn.Dropout(0.5)
+        self.dropouts = nn.ModuleList([nn.Dropout(0.5) for _ in range(5)])
         self.attention = BahdanauAttention(image_dim,hidden_size)
     
     def forward(self,images,captions,lengths):
@@ -92,8 +128,16 @@ class DecoderRNN(nn.Module):
                 torch.cat([embeddings[:batch_size_t, t, :], attention_weighted_encoding], dim=1),
                 (h[:batch_size_t], c[:batch_size_t]))
             
+            #multisample dropout for faster convergence
+            for i,dropout in enumerate(self.dropouts):
+                if i == 0:
+                    out = dropout(h)
+                else:
+                    out += dropout(h)
 
-            preds = self.fc(self.dropout(h))  # (batch_size_t, vocab_size)
+            out /= len(self.dropouts)
+
+            preds = self.fc(out)  # (batch_size_t, vocab_size)
             predictions[:batch_size_t, t, :] = preds
             alphas[:batch_size_t, t, :] = alpha.squeeze(2)
         #alphas are the attention weights
@@ -105,17 +149,35 @@ class DecoderRNN(nn.Module):
         c = self.init_c(images)
         return h,c
 
-    def sample(self, features, states=None):
-        """DOES NOT WORK I THINK"""
-        """Generate captions for given image features using greedy search."""
-        sampled_ids = []
-        inputs = features.unsqueeze(1)
-        for i in range(self.max_seg_length):
-            hiddens, states = self.lstm(inputs, states)          # hiddens: (batch_size, 1, hidden_size)
-            outputs = self.linear(hiddens.squeeze(1))            # outputs:  (batch_size, vocab_size)
-            _, predicted = outputs.max(1)                        # predicted: (batch_size)
-            sampled_ids.append(predicted)
-            inputs = self.embed(predicted)                       # inputs: (batch_size, embed_size)
-            inputs = inputs.unsqueeze(1)                         # inputs: (batch_size, 1, embed_size)
-        sampled_ids = torch.stack(sampled_ids, 1)                # sampled_ids: (batch_size, max_seq_length)
-        return sampled_ids
+    def inference(self, images,max_seq_length=30):
+        """Decode image feature vectors and generates captions."""
+        batch_size = images.size(0)
+        num_pixels = images.size(1)
+        
+        h,c = self.init_hidden(batch_size,images)
+
+        predictions = torch.zeros(batch_size,max_seq_length, self.vocab_size).to(device)
+        alphas = torch.zeros(batch_size,max_seq_length, num_pixels).to(device)
+        lengths = torch.zeros(batch_size).to(device)
+
+        embeddings = self.embed(torch.ones(batch_size).long().to(device))
+
+        for t in range(max_seq_length):
+
+            attention_weighted_encoding, alpha = self.attention(images,h)
+            h, c = self.lstm(
+                torch.cat([embeddings, attention_weighted_encoding], dim=1),
+                (h, c))
+            
+            preds = self.fc(h)  # (batch_size_t, vocab_size)
+
+
+            predictions[:, t, :] = preds
+            preds = preds.argmax(dim=1)
+
+            embeddings = self.embed(preds)
+            lengths[(preds == 2) & (lengths==0)] = t + 1
+
+            alphas[:, t, :] = alpha.squeeze(2)
+        #alphas are the attention weights
+        return predictions,lengths,alphas
