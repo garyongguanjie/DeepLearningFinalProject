@@ -2,7 +2,7 @@
 Coco2014 image captioning with visual attention
 
 **Ensure that you are in the `scratch` folder.**\
-The code below dumps torch binary features and binary vocab dictionary.
+The code below dumps binary vocab dictionary.
 ```
 git clone https://github.com/garyongguanjie/DeepLearningFinalProject.git
 cd DeepLearningFinalProject
