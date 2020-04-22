@@ -16,10 +16,10 @@
             <div class="box">
                 <div class="img_box">
                     <div class="show">
-                        <img src="{{ uri }}">
+                        <img id="Image" src="{{ uri }}">
                     </div>
-                    <div class="caption">
-                        {{ caption }}
+                    <div id="Caption" class="caption">
+                        <span>{{ caption }}</span>
                     </div>
                     <a class="back" href='/' style='text-decoration: none; color: inherit;'>
                         Try Another Image
@@ -28,4 +28,23 @@
             </div>
         </div>
     </body>
+    <script type="text/javascript">
+        window.onload = function(){
+            var caption = document.getElementById('Caption');
+            var img = document.getElementById('Image');
+            var out = [];
+            var words = caption.innerText.trim().split(' ');
+            for (var j = 0; j < words.length; j += 1) {
+                out.push('<span class="word' + j.toString() + '" style="cursor: pointer">' + words.slice(j, j+1) + '</span>');
+                if (j != words.length - 1){
+                    out.push('<span class="space" style="white-space: pre-wrap;"> </span>');
+                };
+            };
+            caption.innerHTML = out.join(' ');
+
+            document.getElementsByClassName('word0').addEventListener('click', function(event){
+                img.src = 'https://images.theconversation.com/files/319652/original/file-20200310-61148-vllmgm.jpg?ixlib=rb-1.1.0&q=45&auto=format&w=754&fit=clip';
+            }, false);
+        };
+    </script>
 </html>
