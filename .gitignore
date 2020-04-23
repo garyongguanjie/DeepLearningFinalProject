@@ -10,6 +10,7 @@ new_images/
 settings.json
 .vscode
 *.pt
+*.pth
 *.pkl
 .ipynb_checkpoints
 *.jpg
