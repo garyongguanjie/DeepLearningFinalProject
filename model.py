@@ -42,14 +42,18 @@ class CNNfull(nn.Module):
     """
     passes in full image
     """
-    def __init__(self,fine_tune=3):
+    def __init__(self,pretrained=True,fine_tune=3):
         """
         input_size = num_channels from cnn
         fine_tune: num of blocks onwards of which we update params of resnet
         Eg if fine tune =3: only 3rd block onwards of resnet will have grad updated
         """
         super().__init__()
-        model = models.resnet50(pretrained=True)
+        if pretrained:
+            model = models.resnet50(pretrained=True)
+        else:
+            model = models.resnet50()
+
         self.model = nn.Sequential(*list(model.children())[:-2]) #chop off last two layers
         
         for params in self.model.parameters():

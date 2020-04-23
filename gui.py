@@ -1,7 +1,6 @@
 from flask import Flask, flash, request, redirect, url_for, render_template, jsonify
 import os
 from base64 import b64encode
-from ResnetFeatureExtractor import ResnetFeatures
 from model import DecoderRNN,CNNfull
 import torchvision.transforms as transforms
 from torchvision import models
@@ -50,7 +49,7 @@ image_dim = 2048
 embed_size = 300
 hidden_size = 512
 vocab_size = len(vocab)
-encoder = CNNfull()
+encoder = CNNfull(pretrained=False)
 
 encoder.load_state_dict(torch.load('./weights/encoder_weights_epoch2_loss6.82144.pth', map_location=torch.device('cpu')))
 encoder.eval()
@@ -123,9 +122,11 @@ def predict():
             mime = f.content_type
             uri = "data:%s;base64,%s" % (mime, encoded)
             return render_template('caption.html', uri=uri, caption=caption)
+
         elif f and not allowed_file(f.filename):
             flash('Invalid file extension')
             return redirect(request.url)
+
     elif request.method == 'GET':
         return render_template('home.html')
 
