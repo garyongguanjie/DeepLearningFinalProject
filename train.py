@@ -90,7 +90,7 @@ def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,
         loss.backward()
         enc_optimizer.step()
         dec_optimizer.step()  
-        enc_scheduler.step()
+#         enc_scheduler.step()
         dec_scheduler.step()
 
         epoch_loss += loss.item()
@@ -201,7 +201,7 @@ def main(args):
 
     # Loss and optimizer
     #lr is maximum chosen from batches
-    enc_optimizer_lr = 2e-4
+    enc_optimizer_lr = 1e-4
     dec_optimizer_lr = 0.002
     # weight decay values copied from imagenet and seq2seq models
     enc_optimizer = optim.SGD(encoder.parameters(),lr=enc_optimizer_lr,momentum=0.9,weight_decay=5e-4)
@@ -213,7 +213,6 @@ def main(args):
     view_train_captions = False # View train captions
     view_val_captions = True # View val captions
 
-    enc_scheduler = optim.lr_scheduler.OneCycleLR(enc_optimizer,max_lr=enc_optimizer_lr*50,steps_per_epoch=len(train_loader),epochs=num_epochs)
     dec_scheduler = optim.lr_scheduler.OneCycleLR(dec_optimizer,max_lr=dec_optimizer_lr*50,steps_per_epoch=len(train_loader),epochs=num_epochs)
     
     for epoch in range(num_epochs):
@@ -224,7 +223,7 @@ def main(args):
         val_correct = 0
         val_words = 0
 
-        train_loss,train_correct,train_words = train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,enc_scheduler=enc_scheduler,dec_scheduler=dec_scheduler,view_train_captions=view_train_captions)
+        train_loss,train_correct,train_words = train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,enc_scheduler=None,dec_scheduler=dec_scheduler,view_train_captions=view_train_captions)
         
         val_loss,val_correct,val_words = val_epoch(val_loader,device,encoder,decoder,criterion,vocab,epoch,view_val_captions=view_val_captions)
 
