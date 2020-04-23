@@ -5,7 +5,7 @@ from torch.nn.utils.rnn import pack_padded_sequence
 import torch.nn.functional as F
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
-
+# device = torch.device("cpu") 
 class BahdanauAttention(nn.Module):
     def __init__(self,image_dim,hidden_size):
         super().__init__()
