@@ -162,15 +162,12 @@ def main(args):
     # data paths
     TRAIN_IMG_PATH = args.train_img_path
     VAL_IMG_PATH = args.val_img_path
-    TRAIN_FEATURE_PATH = args.train_feature_path
-    VAL_FEATURE_PATH = args.val_feature_path
     TRAIN_JSON_PATH = args.train_json_path
     VAL_JSON_PATH = args.val_json_path
     VOCAB_PATH = args.vocab_path
     GLOVE_EMBED_PATH = args.glove_embed_path
 
     print(VOCAB_PATH)
-    print(VAL_FEATURE_PATH)
 
     # Load vocab wrapper
     with open(VOCAB_PATH, 'rb') as f:
