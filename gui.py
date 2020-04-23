@@ -1,8 +1,7 @@
 from flask import Flask, flash, request, redirect, url_for, render_template, jsonify
 import os
 from base64 import b64encode
-from ResnetFeatureExtractor import ResnetFeatures
-from model import EncoderCNN, DecoderRNN
+from model import DecoderRNN,CNNfull
 import torchvision.transforms as transforms
 from torchvision import models
 from PIL import Image
@@ -49,19 +48,16 @@ def get_attention(image, result, attention_plot):
 VOCAB_PATH = './data/vocab.pkl'
 with open(VOCAB_PATH, 'rb') as f:
     vocab = pickle.load(f)
-image_dim = 256
+image_dim = 2048
 embed_size = 300
-hidden_size = 300
+hidden_size = 512
 vocab_size = len(vocab)
-encoder = EncoderCNN(512, image_dim)
-encoder.load_state_dict(torch.load('./encoder_weights_epoch25_loss0.07565.pth', map_location=torch.device('cpu')))
+encoder = CNNfull(pretrained=False)
+encoder.load_state_dict(torch.load('./weights/encoder_weights_epoch2_loss6.82144.pth', map_location=torch.device('cpu')))
 encoder.eval()
 decoder = DecoderRNN(image_dim, embed_size, hidden_size, vocab_size)
-decoder.load_state_dict(torch.load('./decoder_weights_epoch25_loss0.07565.pth', map_location=torch.device('cpu')))
+decoder.load_state_dict(torch.load('./weights/decoder_weights_epoch2_loss6.82144.pth', map_location=torch.device('cpu')))
 decoder.eval()
-resnet34 = models.resnet34(pretrained=True)
-FeatureExtractor = ResnetFeatures(resnet34)
-FeatureExtractor.eval()
 
 app = Flask(__name__)
 app.secret_key = "secret key"
@@ -103,7 +99,7 @@ def predict():
                 return redirect(request.url)
             # do caption prediction
             tensor = transform_image(image, "tensor")
-            img_feat = encoder(FeatureExtractor(tensor))
+            img_feat = encoder(tensor)
             predictions, lengths, alphas = decoder.inference(img_feat)
             predicted = predictions.argmax(dim=2)
             caption_list = []
