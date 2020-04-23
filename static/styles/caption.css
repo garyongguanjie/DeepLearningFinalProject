@@ -47,6 +47,10 @@ body {
   transform: translateX(-50%);
 }
 
+.show:hover{
+  cursor: pointer;
+}
+
 .show img{
   height: initial;
   width: initial;
@@ -79,8 +83,8 @@ body {
   width: 100%;
   justify-content: center;
   align-items: center;
-  text-align:center;
-  display: flex;
+  text-align: center;
+  display: inline-block;
   font-size: 25px;
 }
 

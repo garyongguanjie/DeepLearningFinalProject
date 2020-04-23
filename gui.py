@@ -1,7 +1,8 @@
 from flask import Flask, flash, request, redirect, url_for, render_template, jsonify
 import os
 from base64 import b64encode
-from model import DecoderRNN,CNNfull
+from ResnetFeatureExtractor import ResnetFeatures
+from model import EncoderCNN, DecoderRNN
 import torchvision.transforms as transforms
 from torchvision import models
 from PIL import Image
@@ -12,8 +13,14 @@ from build_vocab import Vocabulary
 import string
 import matplotlib.pyplot as plt
 import numpy as np
+import json
+import cv2
 
 def transform_image(image, img_type):
+    """
+    Summary:
+        Transform PIL image to either Tensor or NumPy array
+    """
     if img_type == "tensor":
         my_transforms = transforms.Compose([transforms.Resize((224, 224)),
                                         transforms.ToTensor(),
@@ -24,58 +31,43 @@ def transform_image(image, img_type):
     elif img_type == "numpy":
         return np.array(image)
 
-def plot_attention(image, result, attention_plot):
-    fig = plt.figure(figsize=(20, 20))
+def get_attention(image, result, attention_plot):
+    attention_list = []
     len_result = len(result)
-    print(type(image))
-    print(image.dtype)
     for l in range(len_result):
-        temp_att = np.resize(attention_plot[l], (7, 7))
-        ax = fig.add_subplot(len_result//2, len_result//2, l+1)
-        ax.set_title(result[l])
-        img = ax.imshow(image)
-        ax.imshow(temp_att, cmap='gray', alpha=0.6, extent=img.get_extent())
-
-    plt.tight_layout()
-    plt.savefig("./static/attImage.png")
-    # img = plt.imshow(image)
-    # overall_attention = np.max(attention_plot, axis=1)
-    # att = np.resize(overall_attention, (7, 7))
-    # plt.imshow(att, cmap='gray', alpha=0.6, extent=img.get_extent())
-    # plt.axis('off')
-    # plt.savefig("mygraph_overall.png")
-    # len_result = len(result)
-    # for l in range(len_result - 1):
-    #     plt.clf()
-    #     att = np.resize(attention_plot[l], (7, 7))
-    #     img = plt.imshow(image)
-    #     plt.imshow(att, cmap='gray', alpha=0.6, extent=img.get_extent())
-    #     plt.axis('off')
-    #     plt.savefig("mygraph" + str(l) + "_" + result[l] + ".png")
-    pass
+        attention_mask = np.resize(attention_plot[l], (7, 7))
+        attention_mask = cv2.resize(attention_mask, (image.shape[1], image.shape[0]))
+        attention_mask = ((attention_mask - attention_mask.min()) * (1/(attention_mask.max() - attention_mask.min()) * 255)).astype('uint8')
+        attention_img = Image.fromarray(attention_mask)
+        attention_img = attention_img.convert('RGB')
+        attention_mask = np.array(attention_img)
+        combined_img = cv2.addWeighted(image, 0.5, attention_mask, 0.5, 0)
+        attention_list.append(Image.fromarray(combined_img))
+    return attention_list
 
 # Initialise models
 VOCAB_PATH = './data/vocab.pkl'
 with open(VOCAB_PATH, 'rb') as f:
     vocab = pickle.load(f)
-image_dim = 2048
+image_dim = 256
 embed_size = 300
-hidden_size = 512
+hidden_size = 300
 vocab_size = len(vocab)
-encoder = CNNfull(pretrained=False)
-
-encoder.load_state_dict(torch.load('./weights/encoder_weights_epoch2_loss6.82144.pth', map_location=torch.device('cpu')))
+encoder = EncoderCNN(512, image_dim)
+encoder.load_state_dict(torch.load('./encoder_weights_epoch25_loss0.07565.pth', map_location=torch.device('cpu')))
 encoder.eval()
-
 decoder = DecoderRNN(image_dim, embed_size, hidden_size, vocab_size)
-decoder.load_state_dict(torch.load('./weights/decoder_weights_epoch2_loss6.82144.pth', map_location=torch.device('cpu')))
+decoder.load_state_dict(torch.load('./decoder_weights_epoch25_loss0.07565.pth', map_location=torch.device('cpu')))
 decoder.eval()
+resnet34 = models.resnet34(pretrained=True)
+FeatureExtractor = ResnetFeatures(resnet34)
+FeatureExtractor.eval()
 
 app = Flask(__name__)
 app.secret_key = "secret key"
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'PNG', 'JPG', 'JPEG'])
+ALLOWED_EXTENSIONS = set(['webp', 'png', 'jpg', 'jpeg', 'PNG', 'JPG', 'JPEG'])
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -111,7 +103,7 @@ def predict():
                 return redirect(request.url)
             # do caption prediction
             tensor = transform_image(image, "tensor")
-            img_feat = encoder(tensor)
+            img_feat = encoder(FeatureExtractor(tensor))
             predictions, lengths, alphas = decoder.inference(img_feat)
             predicted = predictions.argmax(dim=2)
             caption_list = []
@@ -128,18 +120,27 @@ def predict():
                     caption += caption_list[i] + " "
                 else:
                     caption += caption_list[i]
-            img_numpy = transform_image(img_bytes, "numpy")
-            plot_attention(np.array(image), caption_list, alphas.detach().cpu().squeeze(0).numpy())
-            
+            img_numpy = transform_image(image, "numpy")
+            # get list of attention  images
+            attention_list = get_attention(img_numpy, caption_list, alphas.detach().cpu().squeeze(0).numpy())
             encoded = b64encode(img_bytes).decode('utf-8')
             mime = f.content_type
             uri = "data:%s;base64,%s" % (mime, encoded)
-            return render_template('caption.html', uri=uri, caption=caption)
-
+            attention = ""
+            for i in range(len(attention_list)):
+                byte_io = io.BytesIO()
+                attention_list[i].save(byte_io, mime.split('/')[-1])
+                byte_io.seek(0)
+                data = byte_io.read()
+                # image = Image.open(io.BytesIO(data))
+                # image.save("image"+ str(i) + "." +mime.split('/')[-1])
+                encoded = b64encode(data).decode('utf-8')
+                attention += "data:%s;base64,%s" % (mime, encoded) + " "
+            # pass original image, caption, and attention images to be rendered with template
+            return render_template('caption.html', uri=uri, caption=caption, attention=attention)
         elif f and not allowed_file(f.filename):
             flash('Invalid file extension')
             return redirect(request.url)
-
     elif request.method == 'GET':
         return render_template('home.html')
 
