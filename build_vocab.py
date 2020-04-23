@@ -67,6 +67,17 @@ def main(caption_path,threshold,vocab_path):
 if __name__ == '__main__':
     import config
     import os
+    import argparse
+
+    parser = argparse.ArgumentParser()  
+    parser.add_argument('--train_json_path', type=str, default=config.TRAIN_JSON_PATH, help='path for train json')
+    parser.add_argument('--vocab_path', type=str, default=config.VOCAB_PATH, help='path for vocabulary wrapper')
+    parser.add_argument('--vocab_threshold', type=str, default=config.VOCAB_THRESHOLD, help='minimum number of words in caption corpus to be added to vocab')
+    args = parser.parse_args(args=[])
+
     if not os.path.isdir('./data'):
+        # create default directory for storing vocab if not available
         os.mkdir('./data')
-    main(config.TRAIN_JSON_PATH,20,config.VOCAB_PATH)
+    
+    main(args.train_json_path,args.vocab_threshold,args.vocab_path)
+    

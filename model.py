@@ -66,28 +66,6 @@ class CNNfull(nn.Module):
         x = x.permute(0,2,1) # bs x 49 x 2048
         return x
 
-class EncoderCNN(nn.Module):
-    """
-    Just pass in features from pickle files
-    """
-    def __init__(self,input_size,image_dim):
-        """
-        input_size = num of channels from cnn
-        use fc to convert 512 x 49 -> image_dim x 49 
-        Can think of it as compressing number of channels or increasing number of channels
-        """
-        super().__init__()
-        self.fc = nn.Linear(input_size,image_dim)
-        self.bn = nn.BatchNorm1d(49)
-        self.relu = nn.ReLU(inplace=True)
-    def forward(self,x):
-        x = x.permute(0,2,1)
-        x = self.fc(x)
-        x = self.bn(x)
-        x = self.relu(x)
-        return x
-
-
 class DecoderRNN(nn.Module):
 
     def __init__(self, image_dim,embed_size, hidden_size, vocab_size):

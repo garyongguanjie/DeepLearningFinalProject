@@ -251,17 +251,18 @@ def main(args):
 
 if __name__ == '__main__':
     import os
+    import config
+
     if not os.path.isdir('./weights'):
         os.mkdir('weights')
+    
     parser = argparse.ArgumentParser()    
     # Data parameters
-    parser.add_argument('--vocab_path', type=str, default='./data/vocab.pkl', help='path for vocabulary wrapper')
-    parser.add_argument('--train_img_path', type=str, default='../../datasets/coco2014/train2014', help='path for train images')
-    parser.add_argument('--val_img_path', type=str, default='../../datasets/coco2014/val2014', help='path for val images')
-    parser.add_argument('--train_feature_path', type=str, default='./train_features', help='path for train features extracted')
-    parser.add_argument('--val_feature_path', type=str, default='./val_features', help='path for val features extracted')
-    parser.add_argument('--train_json_path', type=str, default='../../datasets/coco2014/trainval_coco2014_captions/captions_train2014.json', help='path for train json')
-    parser.add_argument('--val_json_path', type=str, default='../../datasets/coco2014/trainval_coco2014_captions/captions_val2014.json', help='path for val json')    
+    parser.add_argument('--vocab_path', type=str, default=config.VOCAB_PATH, help='path for vocabulary wrapper')
+    parser.add_argument('--train_img_path', type=str, default=config.TRAIN_IMG_PATH, help='path for train images')
+    parser.add_argument('--val_img_path', type=str, default=config.VAL_IMG_PATH, help='path for val images')
+    parser.add_argument('--train_json_path', type=str, default=config.TRAIN_JSON_PATH, help='path for train json')
+    parser.add_argument('--val_json_path', type=str, default=config.VAL_JSON_PATH, help='path for val json')    
     args = parser.parse_args(args=[])
     print(args)
     main(args)
