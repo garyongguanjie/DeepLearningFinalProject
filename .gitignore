@@ -2,6 +2,7 @@ __pycache__/
 train_features/
 val_features/
 new_images/
+data/
 *.py[cod]
 *$py.class
 *.npy
