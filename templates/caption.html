@@ -39,22 +39,21 @@
             for (var i = 0; i < words.length; i += 1) {
                 out.push('<span id="Word' + i.toString() + '" style="cursor: pointer">' + words.slice(i, i+1) + '</span>');
                 if (i != words.length - 1){
-                    out.push('<span class="space"> </span>');
+                    out.push('<span style="white-space:pre-wrap"></span>');
                 };
             };
             caption.innerHTML = out.join(' ');
-
-            document.getElementById('Show').addEventListener('click', function(event){
-                image.setAttribute('src', "{{ uri }}");
-            }, false);
 
             var attentionList = "{{ attention }}";
             attentionList = attentionList.split(' ');
 
             for (var j = 0; j < words.length; j += 1){
-                document.getElementById('Word' + j.toString()).addEventListener('click', function(event){
+                document.getElementById('Word' + j.toString()).addEventListener('mouseover', function(event){
                     var target = event.target.id.match(/\d+/)[0];
                     image.setAttribute('src', attentionList[target].toString());
+                }, false);
+                document.getElementById('Word' + j.toString()).addEventListener('mouseleave', function(event){
+                    image.setAttribute('src', "{{ uri }}");
                 }, false);
             };
         };
