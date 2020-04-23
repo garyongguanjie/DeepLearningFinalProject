@@ -33,7 +33,7 @@ if __name__ == "__main__":
             embeddings[i] = np.random.normal(loc=-0.003905,scale=0.38177,size=(300,))
     print(f"number of words in glove are {counter}/{vocab_size}")
     torch_embeddings = torch.from_numpy(embeddings)
-    torch.save(torch_embeddings,'glove_embeddings.pth')
+    torch.save(torch_embeddings,config.GLOVE_EMBED_PATH)
 
     
 

@@ -167,7 +167,8 @@ def main(args):
     TRAIN_JSON_PATH = args.train_json_path
     VAL_JSON_PATH = args.val_json_path
     VOCAB_PATH = args.vocab_path
-    
+    GLOVE_EMBED_PATH = args.glove_embed_path
+
     print(VOCAB_PATH)
     print(VAL_FEATURE_PATH)
 
@@ -199,6 +200,8 @@ def main(args):
     encoder = CNNfull().to(device)
     decoder = DecoderRNN(image_dim,embed_size,hidden_size,vocab_size).to(device)
 
+    decoder.load_embeddings(torch.load(GLOVE_EMBED_PATH))
+    
     # Loss and optimizer
     #lr is maximum chosen from batches
     enc_optimizer_lr = 1e-4
@@ -263,6 +266,7 @@ if __name__ == '__main__':
     parser.add_argument('--val_img_path', type=str, default=config.VAL_IMG_PATH, help='path for val images')
     parser.add_argument('--train_json_path', type=str, default=config.TRAIN_JSON_PATH, help='path for train json')
     parser.add_argument('--val_json_path', type=str, default=config.VAL_JSON_PATH, help='path for val json')    
+    parser.add_argument('--glove_embed_path', type=str, default=config.GLOVE_EMBED_PATH, help='path for glove embeddings') 
     args = parser.parse_args(args=[])
     print(args)
     main(args)

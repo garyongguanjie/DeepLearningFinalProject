@@ -4,8 +4,6 @@ import torchvision.models as models
 from torch.nn.utils.rnn import pack_padded_sequence
 import torch.nn.functional as F
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
-# device = torch.device("cpu") 
 class BahdanauAttention(nn.Module):
     def __init__(self,image_dim,hidden_size):
         super().__init__()
@@ -72,9 +70,13 @@ class CNNfull(nn.Module):
 
 class DecoderRNN(nn.Module):
 
-    def __init__(self, image_dim,embed_size, hidden_size, vocab_size):
+    def __init__(self, image_dim,embed_size, hidden_size, vocab_size,device=None):
         """Set the hyper-parameters and build the layers."""
         super(DecoderRNN, self).__init__()
+        if device == None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
+        else:
+            self.device = device
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
         self.embed = nn.Embedding(vocab_size, embed_size) #this embeddings will be learned
@@ -87,9 +89,14 @@ class DecoderRNN(nn.Module):
         self.fc = nn.Linear(hidden_size, vocab_size)
         self.dropouts = nn.ModuleList([nn.Dropout(0.5) for _ in range(5)])
         self.attention = BahdanauAttention(image_dim,hidden_size)
-    
+        
+    def load_embeddings(self,embeddings):
+        # set freeze = false as some words not in pretrained
+        self.embed.from_pretrained(embeddings,freeze=False)
+
     def forward(self,images,captions,lengths):
         """Decode image feature vectors and generates captions."""
+        device = self.device
         batch_size = images.size(0)
         num_pixels = images.size(1)
         embeddings = self.embed(captions) # bs,max_seq_length,embed_dimension
@@ -133,6 +140,7 @@ class DecoderRNN(nn.Module):
 
     def inference(self, images,max_seq_length=30):
         """Decode image feature vectors and generates captions."""
+        device = self.device
         batch_size = images.size(0)
         num_pixels = images.size(1)
         
