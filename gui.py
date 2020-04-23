@@ -25,6 +25,19 @@ def transform_image(image, img_type):
         return np.array(image)
 
 def plot_attention(image, result, attention_plot):
+    fig = plt.figure(figsize=(20, 20))
+    len_result = len(result)
+    print(type(image))
+    print(image.dtype)
+    for l in range(len_result):
+        temp_att = np.resize(attention_plot[l], (7, 7))
+        ax = fig.add_subplot(len_result//2, len_result//2, l+1)
+        ax.set_title(result[l])
+        img = ax.imshow(image)
+        ax.imshow(temp_att, cmap='gray', alpha=0.6, extent=img.get_extent())
+
+    plt.tight_layout()
+    plt.savefig("./static/attImage.png")
     # img = plt.imshow(image)
     # overall_attention = np.max(attention_plot, axis=1)
     # att = np.resize(overall_attention, (7, 7))
@@ -116,7 +129,7 @@ def predict():
                 else:
                     caption += caption_list[i]
             img_numpy = transform_image(img_bytes, "numpy")
-            plot_attention(img_numpy, caption_list, alphas.detach().cpu().squeeze(0).numpy())
+            plot_attention(np.array(image), caption_list, alphas.detach().cpu().squeeze(0).numpy())
             
             encoded = b64encode(img_bytes).decode('utf-8')
             mime = f.content_type
