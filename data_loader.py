@@ -11,6 +11,9 @@ import nltk
 from PIL import Image
 from build_vocab import Vocabulary
 from pycocotools.coco import COCO
+from MyCocoDataset import MyCocoCaptions
+import re
+
 
 class CocoDataset(data.Dataset):
     """COCO Custom Dataset compatible with torch.utils.data.DataLoader."""
@@ -84,6 +87,32 @@ def collate_fn(data):
         targets[i, :end] = cap[:end]        
     return images, targets, lengths
 
+def collate_fn_unique(data):
+    """Creates mini-batch tensors from the list of tuples (image, caption).
+    
+    We should build custom collate_fn rather than using default collate_fn, 
+    because merging caption (including padding) is not supported in default.
+    Args:
+        data: list of tuple (image, caption). 
+            - image: torch tensor of shape (3, 256, 256).
+            - caption: torch tensor of shape (?); variable length.
+    Returns:
+        images: torch tensor of shape (batch_size, 3, 256, 256).
+        targets: torch tensor of shape (batch_size, padded_length).
+        lengths: list; valid length for each padded caption.
+    """
+    # Sort a data list by caption length (descending order).
+    data.sort(key=lambda x: len(x[1]), reverse=True)
+    images, captions = zip(*data)
+
+    # Merge images (from tuple of 3D tensor to 4D tensor).
+    images = torch.stack(images, 0)
+    
+    # Split sentences from "Hi, i am joseph" to ["Hi", ",", "i", "am", "joseph"]
+    captions_bleu = [[re.findall(r"[\w']+|[.,!?;]", i) for i in j] for j in captions]
+       
+    return images, captions_bleu, captions
+
 def get_loader(root, json, vocab, transform, batch_size, shuffle, num_workers):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
     # COCO caption dataset
@@ -102,4 +131,23 @@ def get_loader(root, json, vocab, transform, batch_size, shuffle, num_workers):
                                               shuffle=shuffle,
                                               num_workers=num_workers,
                                               collate_fn=collate_fn)
+    return data_loader
+
+def get_loader_unique(root, json, transform, batch_size, shuffle, num_workers):
+    """Returns torch.utils.data.DataLoader for custom coco dataset."""
+    # COCO caption dataset    
+    coco = MyCocoCaptions(root = root,
+                        annFile = json,
+                        transform=transform)
+    
+    # Data loader for COCO dataset
+    # This will return (images, captions, lengths) for each iteration.
+    # images: a tensor of shape (batch_size, 3, 224, 224).
+    # captions: a tensor of shape (batch_size, padded_length).
+    # lengths: a list indicating valid length for each caption. length is (batch_size).
+    data_loader = torch.utils.data.DataLoader(dataset=coco, 
+                                              batch_size=batch_size,
+                                              shuffle=shuffle,
+                                              num_workers=num_workers,
+                                              collate_fn=collate_fn_unique)
     return data_loader

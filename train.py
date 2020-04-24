@@ -1,5 +1,5 @@
 import pickle
-from data_loader import get_loader,CocoDataset
+from data_loader import get_loader,CocoDataset, get_loader_unique
 from build_vocab import Vocabulary
 from torchvision import models
 import torch
@@ -13,25 +13,39 @@ import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
+from torchtext.data.metrics import bleu_score
+from nltk.translate import meteor_score
+from MyCocoDataset import MyCocoCaptions
+import nltk
+nltk.download('wordnet')
 
-def plot_graphs(num_epochs, train_losses, val_losses, train_acc, val_acc):
-    plt.figure(figsize=(12,6))
+def plot_graphs(num_epochs, train_losses, train_acc, bleu2, bleu3, bleu4,val_meteor):
+    plt.figure(figsize=(18,6))
 
-    plt.subplot(121)
+    plt.subplot(131)
     plt.title('Acc vs Epoch')
     plt.plot(range(1, num_epochs+1), train_acc, label='train_acc')
-    plt.plot(range(1, num_epochs+1), val_acc, label='val_acc')
     plt.xlabel('Epoch')
     plt.ylabel('Acc')
     plt.xticks(np.arange(1, num_epochs+1, 1.0))
     plt.legend()
 
-    plt.subplot(122)
+    plt.subplot(132)
     plt.title('Loss vs Epoch')
     plt.plot(range(1, num_epochs+1), train_losses, label='train_loss')
-    plt.plot(range(1, num_epochs+1), val_losses, label='val_loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
+    plt.xticks(np.arange(1, num_epochs+1, 1.0))
+    plt.legend()
+    
+    plt.subplot(133)
+    plt.title('Metric Score vs Epoch')
+    plt.plot(range(1, num_epochs+1), bleu2, label='Bleu2')
+    plt.plot(range(1, num_epochs+1), bleu3, label='Bleu3')
+    plt.plot(range(1, num_epochs+1), bleu4, label='Bleu4')
+    plt.plot(range(1, num_epochs+1), meteor, label='Meteor')
+    plt.xlabel('Epoch')
+    plt.ylabel('Metric Score')
     plt.xticks(np.arange(1, num_epochs+1, 1.0))
     plt.legend()
     
@@ -44,7 +58,7 @@ def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,
     epoch_loss = 0
     epoch_correct = 0
     epoch_words = 0
-    for i, data in enumerate(tqdm(train_loader)):        
+    for i, data in enumerate(tqdm(train_loader)):   
         # zero the gradients
         enc_optimizer.zero_grad()
         dec_optimizer.zero_grad()
@@ -75,7 +89,8 @@ def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,
                 for word in range(len(top_predictions[sentence])):
                     print(vocab.idx2word[targets[sentence][word].cpu().detach().item()], end=" ")
                 break # View only 1 train caption
-
+        
+        
         # Pack scores and targets as batch 
         batch_scores, _,_,_ = pack_padded_sequence(predictions, decode_lengths, batch_first=True)
         batch_targets, _,_,_ = pack_padded_sequence(targets, decode_lengths, batch_first=True)
@@ -89,9 +104,10 @@ def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,
         loss = criterion(batch_scores, batch_targets)
         # Backward and optimize
         loss.backward()
-        tqdm.write(_term_move_up()+str(loss.item()))
+#         tqdm.write(_term_move_up()+str(loss.item()))
         dec_optimizer.step()
-
+        
+        
         #train pretrained stuff only after the first epoch
         if epoch != 0:
             enc_optimizer.step()
@@ -106,57 +122,61 @@ def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,
     return epoch_loss,epoch_correct,epoch_words
 
 
-def val_epoch(val_loader,device,encoder,decoder,criterion,vocab,epoch,enc_scheduler=None,dec_scheduler=None,view_val_captions=False):
+def val_epoch(val_loader,device,encoder,decoder,vocab,epoch,enc_scheduler=None,dec_scheduler=None,view_val_captions=False):
     """
     some schedulers can be called in validation
     """
     epoch_loss = 0
     epoch_correct = 0
     epoch_words = 0
+    bleu2 = 0
+    bleu3 = 0
+    bleu4 = 0
+    meteor = 0
+    
+    encoder.eval()
+    decoder.eval()
+    
+    for idx,data in enumerate(tqdm(val_loader)):
+        images,targ_corpus,meteor_reference = data
+        images = images.to(device)
+        encoded_images = encoder(images)
+        predictions,lengths1,alphas = decoder.inference(encoded_images)
+        predicted = predictions.argmax(dim=2)
+        pred_corpus = [[] for i in range (len(predicted))]
+        meteor_hypothesis = list()
+        for i in range(len(predicted)):
+            meteor_str = ""
+            for j in range(int(lengths1[i].item())):
+                term = vocab.idx2word[predicted[i][j].cpu().detach().item()]
+                if term == "<end>":
+                    break
+                pred_corpus[i].append(term)
+                meteor_str += term + " "
+            meteor_hypothesis.append(meteor_str[:-1])
+        if view_val_captions==True and idx%500==0:
+            print(pred_corpus[0])
+            print(targ_corpus[0])
+            
 
-    for i, data in enumerate(tqdm(val_loader)):
-        # deactivate autograd engine
-        with torch.no_grad():
-            # set decoder and encoder to eval mode
-            encoder.eval()
-            decoder.eval()
+        bleu2 += bleu_score(pred_corpus, targ_corpus,max_n=2,weights=[0.5]*2) #bleu2
+        bleu3 += bleu_score(pred_corpus, targ_corpus,max_n=3,weights=[1/3]*3) #bleu3
+        bleu4 += bleu_score(pred_corpus, targ_corpus,max_n=4,weights=[0.25]*4) #bleu4 
+        temp_meteor = 0
+        for i in range(len(pred_corpus)):
+            temp_meteor += meteor_score.meteor_score(meteor_reference[i], meteor_hypothesis[i], alpha=0.85, beta=0.2, gamma=0.6) #meteor
+        meteor += temp_meteor/len(pred_corpus)
+    
+    bleu2 = bleu2/(idx+1)
+    bleu3 = bleu3/(idx+1)
+    bleu4 = bleu4/(idx+1)
+    meteor = meteor/(idx+1)
+    
+#     print("bleu2",bleu2/(idx+1))
+#     print("bleu3",bleu3/(idx+1))
+#     print("bleu4",bleu4/(idx+1))
 
-            # Set mini batch dataset
-            images, captions, lengths = data
-            images, captions = images.to(device), captions.to(device)
-
-            # Forward
-            encoded_images = encoder(images)
-            predictions, captions, decode_lengths, alphas = decoder(encoded_images, captions, lengths)
-            targets = captions[:, 1:]
-
-            if view_val_captions == True and i%2000 == 0: # View val captions
-                top_predictions = predictions.argmax(dim=2) # Select prediction with highest probability
-                print("eval, epoch={}, i={}".format(epoch,i))
-                for sentence in range(len(top_predictions)):
-                    print("\nPrediction:", end=" ")
-                    for word in range(len(top_predictions[sentence])):          
-                        print(vocab.idx2word[top_predictions[sentence][word].cpu().detach().item()], end=" ")
-                    print("\nTarget:", end=" ")
-                    for word in range(len(top_predictions[sentence])):
-                        print(vocab.idx2word[targets[sentence][word].cpu().detach().item()], end=" ")
-
-            # Pack scores and targets as batch 
-            batch_scores, _,_,_ = pack_padded_sequence(predictions, decode_lengths, batch_first=True)
-            batch_targets, _,_,_ = pack_padded_sequence(targets, decode_lengths, batch_first=True)       
-
-            # Calculate accuracy
-            top_batch_scores = batch_scores.argmax(dim=1)
-            correct = (top_batch_scores == batch_targets).sum().cpu().detach().item()
-            words = len(batch_scores)
-            epoch_correct += correct
-            epoch_words += words            
-
-            # Calculate loss
-            loss = criterion(batch_scores, batch_targets)
-            epoch_loss += loss.item()   
-
-    return epoch_loss,epoch_correct,epoch_words
+    return bleu2,bleu3,bleu4,meteor
 
 def main(args):    
     # get losses for visualization
@@ -164,6 +184,10 @@ def main(args):
     val_losses = list()
     train_acc = list()
     val_acc = list()
+    val_bleu2 = list()
+    val_bleu3 = list()
+    val_bleu4 = list()
+    val_meteor = list()
 
     # data paths
     TRAIN_IMG_PATH = args.train_img_path
@@ -187,9 +211,9 @@ def main(args):
     # Build dataloaders
     batch_size = 32
     TRAIN_LOADER = {'root':TRAIN_IMG_PATH, 'json':TRAIN_JSON_PATH, 'vocab':vocab, 'batch_size':batch_size, 'shuffle':True, 'num_workers':4,'transform':transformation}
-    VAL_LOADER = {'root':VAL_IMG_PATH, 'json':VAL_JSON_PATH, 'vocab':vocab, 'batch_size':batch_size, 'shuffle':False, 'num_workers':4,'transform':transformation}
+    VAL_LOADER_UNIQUE = {'root':VAL_IMG_PATH, 'json':VAL_JSON_PATH, 'batch_size':16, 'shuffle':False,'transform':transformation, 'num_workers':4} #root, json, transform, batch_size, shuffle, num_workers
     train_loader = get_loader(**TRAIN_LOADER)
-    val_loader = get_loader(**VAL_LOADER)
+    val_loader = get_loader_unique(**VAL_LOADER_UNIQUE)
     print(len(train_loader))
     # Device configuration
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
@@ -222,9 +246,9 @@ def main(args):
     criterion = nn.CrossEntropyLoss()
 
     # Train the models
-    num_epochs = 4
+    num_epochs = 5
     view_train_captions = False # View train captions
-    view_val_captions = True # View val captions
+    view_val_captions = False # View val captions
 
     dec_scheduler = optim.lr_scheduler.OneCycleLR(dec_optimizer,max_lr=0.2,steps_per_epoch=len(train_loader),epochs=num_epochs)
     
@@ -238,28 +262,27 @@ def main(args):
 
         train_loss,train_correct,train_words = train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,epoch=epoch,embed_optimizer=embed_optimizer,enc_scheduler=None,dec_scheduler=dec_scheduler,view_train_captions=view_train_captions)
         
-        val_loss,val_correct,val_words = val_epoch(val_loader,device,encoder,decoder,criterion,vocab,epoch,view_val_captions=view_val_captions)
+        bleu2,bleu3,bleu4,meteor = val_epoch(val_loader,device,encoder,decoder,vocab,epoch,view_val_captions=view_val_captions)
 
         average_train_loss = train_loss / (len(train_loader))
         train_losses.append(average_train_loss)
 
-        average_val_loss = val_loss / (len(val_loader))
-        val_losses.append(average_val_loss) 
-
         average_train_acc = train_correct / train_words
         train_acc.append(average_train_acc)
-
-        average_val_acc = val_correct / val_words
-        val_acc.append(average_val_acc)  
+        
+        val_bleu2.append(bleu2)
+        val_bleu3.append(bleu3)
+        val_bleu4.append(bleu4)
+        val_meteor.append(meteor)
 
         if True:
-            torch.save(encoder.state_dict(), './weights/g_encoder_weights_epoch{}_loss{:.5f}.pth'.format(epoch, average_val_loss))
-            torch.save(decoder.state_dict(), './weights/g_decoder_weights_epoch{}_loss{:.5f}.pth'.format(epoch, average_val_loss))
+            torch.save(encoder.state_dict(), './weights/g_encoder_weights_epoch{}_bleu{:.5f}.pth'.format(epoch, bleu4))
+            torch.save(decoder.state_dict(), './weights/g_decoder_weights_epoch{}_bleu{:.5f}.pth'.format(epoch, bleu4))
             print("Weights saved at epoch {}".format(epoch))
 
-        print("Epoch: {}, Train Loss: {:.5f}, Val Loss: {:.5f}, Train Acc: {:.3f}, Val Acc: {:.3f}".format(epoch, average_train_loss, average_val_loss, average_train_acc, average_val_acc))
+        print("Epoch: {}, Train Loss: {:.5f}, Train Acc: {:.3f}, Val Bleu2: {:.3f}, Val Bleu3: {:.3f}, Val Bleu4: {:.3f}, Val Meteor: {:.3f}".format(epoch, average_train_loss, average_train_acc, bleu2, bleu3, bleu4,meteor))
 
-    plot_graphs(num_epochs, train_losses, val_losses, train_acc, val_acc)
+    plot_graphs(num_epochs, train_losses, train_acc,val_bleu2,val_bleu3,val_bleu4,val_meteor)
 
 
 if __name__ == '__main__':
