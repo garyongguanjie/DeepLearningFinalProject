@@ -43,7 +43,7 @@ def plot_graphs(num_epochs, train_losses, train_acc, bleu2, bleu3, bleu4,val_met
     plt.plot(range(1, num_epochs+1), bleu2, label='Bleu2')
     plt.plot(range(1, num_epochs+1), bleu3, label='Bleu3')
     plt.plot(range(1, num_epochs+1), bleu4, label='Bleu4')
-    plt.plot(range(1, num_epochs+1), meteor, label='Meteor')
+    plt.plot(range(1, num_epochs+1), val_meteor, label='Meteor')
     plt.xlabel('Epoch')
     plt.ylabel('Metric Score')
     plt.xticks(np.arange(1, num_epochs+1, 1.0))
@@ -104,7 +104,7 @@ def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,
         loss = criterion(batch_scores, batch_targets)
         # Backward and optimize
         loss.backward()
-#         tqdm.write(_term_move_up()+str(loss.item()))
+        tqdm.write(_term_move_up()+str(loss.item()))
         dec_optimizer.step()
         
         
@@ -246,7 +246,7 @@ def main(args):
     criterion = nn.CrossEntropyLoss()
 
     # Train the models
-    num_epochs = 5
+    num_epochs = 4
     view_train_captions = False # View train captions
     view_val_captions = False # View val captions
 
