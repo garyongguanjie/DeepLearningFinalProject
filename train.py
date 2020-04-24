@@ -8,6 +8,7 @@ from torchvision import transforms
 from model import DecoderRNN,CNNfull
 from torch.nn.utils.rnn import pack_padded_sequence
 from tqdm import tqdm
+from tqdm._utils import _term_move_up
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,7 +40,7 @@ def plot_graphs(num_epochs, train_losses, val_losses, train_acc, val_acc):
     plt.savefig(fname, bbox_inches='tight')
     plt.show()
 
-def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,enc_scheduler=None,dec_scheduler=None,view_train_captions=False):
+def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,epoch,embed_optimizer=None,enc_scheduler=None,dec_scheduler=None,view_train_captions=False):
     epoch_loss = 0
     epoch_correct = 0
     epoch_words = 0
@@ -47,6 +48,7 @@ def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,
         # zero the gradients
         enc_optimizer.zero_grad()
         dec_optimizer.zero_grad()
+        embed_optimizer.zero_grad()
 
         # set decoder and encoder to train mode
         encoder.train()
@@ -60,6 +62,7 @@ def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,
         encoded_images = encoder(images)
         predictions, captions, decode_lengths, alphas = decoder(encoded_images, captions, lengths)
         targets = captions[:, 1:]        
+
 
         if view_train_captions == True and i%2000 == 0: # View train captions
             top_predictions = predictions.argmax(dim=2) # Select prediction with highest probability
@@ -84,13 +87,16 @@ def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,
 
         # Calculate loss
         loss = criterion(batch_scores, batch_targets)
-        if i%2000==0:
-            print(loss)
         # Backward and optimize
         loss.backward()
-        enc_optimizer.step()
-        dec_optimizer.step()  
-#         enc_scheduler.step()
+        tqdm.write(_term_move_up()+str(loss.item()))
+        dec_optimizer.step()
+
+        #train pretrained stuff only after the first epoch
+        if epoch != 0:
+            enc_optimizer.step()
+            embed_optimizer.step()
+        #update lr
         dec_scheduler.step()
 
         epoch_loss += loss.item()
@@ -197,23 +203,30 @@ def main(args):
     encoder = CNNfull().to(device)
     decoder = DecoderRNN(image_dim,embed_size,hidden_size,vocab_size).to(device)
 
-    decoder.load_embeddings(torch.load(GLOVE_EMBED_PATH))
+    decoder.load_embeddings(torch.load(GLOVE_EMBED_PATH).to(device))
     
     # Loss and optimizer
-    #lr is maximum chosen from batches
-    enc_optimizer_lr = 1e-4
-    dec_optimizer_lr = 0.002
+    #initial lr is chosen based on maxlr/50
+    # maxlr is chosen to be maximum lr that gives lowest loss after ~500 batches
+    enc_optimizer_lr = 1e-4 
+    dec_optimizer_lr = 0.004 #doesnt not matter in onecyclelr
+    embed_optimizer_lr = 1e-4
+
     # weight decay values copied from imagenet and seq2seq models
-    enc_optimizer = optim.SGD(encoder.parameters(),lr=enc_optimizer_lr,momentum=0.9,weight_decay=5e-4)
-    dec_optimizer = optim.SGD(decoder.parameters(),lr=dec_optimizer_lr,momentum=0.9,weight_decay=1e-6)
+    #small lr as it is pretrained
+    enc_optimizer = optim.SGD(encoder.parameters(),lr=enc_optimizer_lr,momentum=0.9,weight_decay=1e-4)
+    #small lr for embed layer as it is pretrained except for a few words
+    embed_optimizer = optim.SGD(list(decoder.parameters())[:1],lr=embed_optimizer_lr,momentum=0.9,weight_decay=1e-7)
+    #large learning rates for decoder
+    dec_optimizer = optim.SGD(list(decoder.parameters())[1:],lr=dec_optimizer_lr,momentum=0.9,weight_decay=1e-7)
     criterion = nn.CrossEntropyLoss()
 
     # Train the models
-    num_epochs = 3
+    num_epochs = 4
     view_train_captions = False # View train captions
     view_val_captions = True # View val captions
 
-    dec_scheduler = optim.lr_scheduler.OneCycleLR(dec_optimizer,max_lr=dec_optimizer_lr*50,steps_per_epoch=len(train_loader),epochs=num_epochs)
+    dec_scheduler = optim.lr_scheduler.OneCycleLR(dec_optimizer,max_lr=0.2,steps_per_epoch=len(train_loader),epochs=num_epochs)
     
     for epoch in range(num_epochs):
         train_loss = 0    
@@ -223,7 +236,7 @@ def main(args):
         val_correct = 0
         val_words = 0
 
-        train_loss,train_correct,train_words = train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,enc_scheduler=None,dec_scheduler=dec_scheduler,view_train_captions=view_train_captions)
+        train_loss,train_correct,train_words = train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,epoch=epoch,embed_optimizer=embed_optimizer,enc_scheduler=None,dec_scheduler=dec_scheduler,view_train_captions=view_train_captions)
         
         val_loss,val_correct,val_words = val_epoch(val_loader,device,encoder,decoder,criterion,vocab,epoch,view_val_captions=view_val_captions)
 
@@ -240,8 +253,8 @@ def main(args):
         val_acc.append(average_val_acc)  
 
         if True:
-            torch.save(encoder.state_dict(), './weights/encoder_weights_epoch{}_loss{:.5f}.pth'.format(epoch, average_val_loss))
-            torch.save(decoder.state_dict(), './weights/decoder_weights_epoch{}_loss{:.5f}.pth'.format(epoch, average_val_loss))
+            torch.save(encoder.state_dict(), './weights/g_encoder_weights_epoch{}_loss{:.5f}.pth'.format(epoch, average_val_loss))
+            torch.save(decoder.state_dict(), './weights/g_decoder_weights_epoch{}_loss{:.5f}.pth'.format(epoch, average_val_loss))
             print("Weights saved at epoch {}".format(epoch))
 
         print("Epoch: {}, Train Loss: {:.5f}, Val Loss: {:.5f}, Train Acc: {:.3f}, Val Acc: {:.3f}".format(epoch, average_train_loss, average_val_loss, average_train_acc, average_val_acc))
