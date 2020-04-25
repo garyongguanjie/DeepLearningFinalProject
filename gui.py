@@ -1,7 +1,7 @@
 from flask import Flask, flash, request, redirect, url_for, render_template, jsonify
 import os
 from base64 import b64encode
-from model import DecoderRNN,CNNfull
+from model_beam_inference import DecoderRNN,CNNfull
 import torchvision.transforms as transforms
 from torchvision import models
 from PIL import Image
@@ -53,10 +53,10 @@ embed_size = 300
 hidden_size = 512
 vocab_size = len(vocab)
 encoder = CNNfull(pretrained=False)
-encoder.load_state_dict(torch.load('./weights/encoder_weights_epoch2_loss6.82144.pth', map_location=torch.device('cpu')))
+encoder.load_state_dict(torch.load('./weights/g_encoder_weights_epoch4_bleu0.24715.pth', map_location=torch.device('cpu')))
 encoder.eval()
 decoder = DecoderRNN(image_dim, embed_size, hidden_size, vocab_size)
-decoder.load_state_dict(torch.load('./weights/decoder_weights_epoch2_loss6.82144.pth', map_location=torch.device('cpu')))
+decoder.load_state_dict(torch.load('./weights/g_decoder_weights_epoch4_bleu0.24715.pth', map_location=torch.device('cpu')))
 decoder.eval()
 
 app = Flask(__name__)
@@ -100,7 +100,8 @@ def predict():
             # do caption prediction
             tensor = transform_image(image, "tensor")
             img_feat = encoder(tensor)
-            predictions, lengths, alphas = decoder.inference(img_feat)
+            beam_width = int(request.form.get('list'))
+            predictions, lengths, alphas = decoder.inference(img_feat, beam_width=beam_width)
             predicted = predictions.argmax(dim=2)
             caption_list = []
             for i in range(len(predicted)):
@@ -128,8 +129,6 @@ def predict():
                 attention_list[i].save(byte_io, mime.split('/')[-1])
                 byte_io.seek(0)
                 data = byte_io.read()
-                # image = Image.open(io.BytesIO(data))
-                # image.save("image"+ str(i) + "." +mime.split('/')[-1])
                 encoded = b64encode(data).decode('utf-8')
                 attention += "data:%s;base64,%s" % (mime, encoded) + " "
             # pass original image, caption, and attention images to be rendered with template

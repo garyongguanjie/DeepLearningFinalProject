@@ -26,6 +26,7 @@ body {
 
 .img_box {
   margin: 25px;
+  margin-bottom: 0px;
   width: 100%;
   display:block;
   justify-content: center;
@@ -45,10 +46,6 @@ body {
   position: relative;
   left: 50%;
   transform: translateX(-50%);
-}
-
-.show:hover{
-  cursor: pointer;
 }
 
 .show img{

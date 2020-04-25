@@ -163,6 +163,7 @@ class DecoderRNN(nn.Module):
 
 
             predictions[:, t, :] = preds
+            preds = F.softmax(preds)
             preds = preds.argmax(dim=1)
 
             embeddings = self.embed(preds)
