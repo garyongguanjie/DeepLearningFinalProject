@@ -3,7 +3,7 @@ Coco2014 image captioning with visual attention
 # Deploy gui
 Ensure [final weights](#final-weights) are downloaded into `./weights` folder
 ```
-pip install requirements.txt
+pip install -r requirements.txt
 python gui.py
 ```
 ## Architecture
