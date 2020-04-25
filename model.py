@@ -92,7 +92,7 @@ class DecoderRNN(nn.Module):
         
     def load_embeddings(self,embeddings):
         # set freeze = false as some words not in pretrained
-        self.embed.from_pretrained(embeddings,freeze=False)
+        self.embed = self.embed.from_pretrained(embeddings,freeze=False)
 
     def forward(self,images,captions,lengths):
         """Decode image feature vectors and generates captions."""
