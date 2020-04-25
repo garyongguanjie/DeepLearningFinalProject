@@ -52,11 +52,14 @@ image_dim = 2048
 embed_size = 300
 hidden_size = 512
 vocab_size = len(vocab)
+
+#for gui use cpu only
+device = torch.device("cpu") 
 encoder = CNNfull(pretrained=False)
-encoder.load_state_dict(torch.load('./weights/g_encoder_weights_epoch4_bleu0.24715.pth', map_location=torch.device('cpu')))
+encoder.load_state_dict(torch.load('./weights/g_encoder_weights_epoch4_bleu0.248.pth', map_location=torch.device('cpu')))
 encoder.eval()
-decoder = DecoderRNN(image_dim, embed_size, hidden_size, vocab_size)
-decoder.load_state_dict(torch.load('./weights/g_decoder_weights_epoch4_bleu0.24715.pth', map_location=torch.device('cpu')))
+decoder = DecoderRNN(image_dim, embed_size, hidden_size, vocab_size,device=device)
+decoder.load_state_dict(torch.load('./weights/g_decoder_weights_epoch4_bleu0.248.pth', map_location=torch.device('cpu')))
 decoder.eval()
 
 app = Flask(__name__)
