@@ -41,7 +41,6 @@ def evaluate(encoder_model_path,decoder_model_path):
     encoder.eval()
     decoder.eval()
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
     bleu2,bleu3,bleu4,meteor = val_epoch(val_loader_unique,device,encoder,decoder,vocab,0,enc_scheduler=None,dec_scheduler=None,view_val_captions=False)
     print(f'Bleu2 score:{bleu2}')
     print(f'Bleu3 score:{bleu3}')
