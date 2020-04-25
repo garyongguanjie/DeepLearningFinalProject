@@ -54,7 +54,7 @@ def plot_graphs(num_epochs, train_losses, train_acc, bleu2, bleu3, bleu4,val_met
     plt.savefig(fname, bbox_inches='tight')
     plt.show()
 
-def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,epoch,embed_optimizer=None,enc_scheduler=None,dec_scheduler=None,view_train_captions=False):
+def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,enc_scheduler=None,dec_scheduler=None,view_train_captions=False):
     epoch_loss = 0
     epoch_correct = 0
     epoch_words = 0
@@ -62,7 +62,6 @@ def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,
         # zero the gradients
         enc_optimizer.zero_grad()
         dec_optimizer.zero_grad()
-        embed_optimizer.zero_grad()
 
         # set decoder and encoder to train mode
         encoder.train()
@@ -105,15 +104,13 @@ def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,
         # Backward and optimize
         loss.backward()
         tqdm.write(_term_move_up()+str(loss.item()))
+
         dec_optimizer.step()
-        
-        
         #train pretrained stuff only after the first epoch
-        if epoch != 0:
-            enc_optimizer.step()
-            embed_optimizer.step()
+        enc_optimizer.step()
         #update lr
         dec_scheduler.step()
+        enc_scheduler.step()
 
         epoch_loss += loss.item()
         epoch_correct += correct
@@ -233,24 +230,22 @@ def main(args):
     #initial lr is chosen based on maxlr/50
     # maxlr is chosen to be maximum lr that gives lowest loss after ~500 batches
     enc_optimizer_lr = 1e-4 
-    dec_optimizer_lr = 0.004 #doesnt not matter in onecyclelr
-    embed_optimizer_lr = 1e-4
+    dec_optimizer_lr = 0.002 #doesnt not matter in onecyclelr
 
     # weight decay values copied from imagenet and seq2seq models
     #small lr as it is pretrained
-    enc_optimizer = optim.SGD(encoder.parameters(),lr=enc_optimizer_lr,momentum=0.9,weight_decay=1e-4)
-    #small lr for embed layer as it is pretrained except for a few words
-    embed_optimizer = optim.SGD(list(decoder.parameters())[:1],lr=embed_optimizer_lr,momentum=0.9,weight_decay=1e-7)
+    enc_optimizer = optim.SGD(encoder.parameters(),lr=enc_optimizer_lr,momentum=0.9,weight_decay=5e-5)
     #large learning rates for decoder
-    dec_optimizer = optim.SGD(list(decoder.parameters())[1:],lr=dec_optimizer_lr,momentum=0.9,weight_decay=1e-7)
+    dec_optimizer = optim.SGD(decoder.parameters(),lr=dec_optimizer_lr,momentum=0.9,weight_decay=1e-7)
     criterion = nn.CrossEntropyLoss()
 
     # Train the models
-    num_epochs = 4
+    num_epochs = 5
     view_train_captions = False # View train captions
     view_val_captions = False # View val captions
 
-    dec_scheduler = optim.lr_scheduler.OneCycleLR(dec_optimizer,max_lr=0.2,steps_per_epoch=len(train_loader),epochs=num_epochs)
+    dec_scheduler = optim.lr_scheduler.OneCycleLR(dec_optimizer,max_lr=0.1,steps_per_epoch=len(train_loader),epochs=num_epochs)
+    enc_scheduler = optim.lr_scheduler.OneCycleLR(enc_optimizer,max_lr=0.005,steps_per_epoch=len(train_loader),epochs=num_epochs)
     
     for epoch in range(num_epochs):
         train_loss = 0    
@@ -260,7 +255,7 @@ def main(args):
         val_correct = 0
         val_words = 0
 
-        train_loss,train_correct,train_words = train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,epoch=epoch,embed_optimizer=embed_optimizer,enc_scheduler=None,dec_scheduler=dec_scheduler,view_train_captions=view_train_captions)
+        train_loss,train_correct,train_words = train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,criterion,vocab,enc_scheduler=enc_scheduler,dec_scheduler=dec_scheduler,view_train_captions=view_train_captions)
         
         bleu2,bleu3,bleu4,meteor = val_epoch(val_loader,device,encoder,decoder,vocab,epoch,view_val_captions=view_val_captions)
 
