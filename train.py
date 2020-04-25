@@ -18,6 +18,56 @@ from nltk.translate import meteor_score
 from MyCocoDataset import MyCocoCaptions
 import nltk
 nltk.download('wordnet')
+import sklearn
+
+# Word Analogy: x1 = y1 - y2 + x2 E.g. boy = man - woman + girl  
+def cosine_similarity_analogy(decoder,vocab,y1,y2,x2,topk=3):
+    # Vocab indices
+    vocab_word2idx = vocab.word2idx
+    vocab_idx2word = vocab.idx2word
+    
+    # Extract embedding matrix from decoder
+    embedding_matrix = decoder.embed.weight.cpu().detach().numpy()
+    
+    # Get embeddings of chosen words
+    y1 = np.expand_dims(embedding_matrix[vocab_word2idx[y1]], axis=0)
+    y2 = np.expand_dims(embedding_matrix[vocab_word2idx[y2]], axis=0)
+    x2 = np.expand_dims(embedding_matrix[vocab_word2idx[x2]], axis=0)
+    
+    x1 = y1 - y2 + x2
+    
+    # Calculate cosine similarity
+    cos_sim = sklearn.metrics.pairwise.cosine_similarity(x1, embedding_matrix)
+    
+    # Return topk closest words
+    closest_k_ind = cos_sim[0].argsort()[-topk:][::-1]
+    closest_k_words = []
+    for i in closest_k_ind:
+        closest_k_words.append(vocab_idx2word[i])
+        
+    return closest_k_words
+
+def cosine_similarity(decoder,vocab,x1,topk=3):
+    # Vocab indices
+    vocab_word2idx = vocab.word2idx
+    vocab_idx2word = vocab.idx2word
+    
+    # Extract embedding matrix from decoder
+    embedding_matrix = decoder.embed.weight.cpu().detach().numpy()
+    
+    # Get embeddings of chosen words
+    x1 = np.expand_dims(embedding_matrix[vocab_word2idx[x1]], axis=0)
+    
+    # Calculate cosine similarity
+    cos_sim = sklearn.metrics.pairwise.cosine_similarity(x1, embedding_matrix)
+    
+    # Return topk closest words
+    closest_k_ind = cos_sim[0].argsort()[-topk:][::-1]
+    closest_k_words = []
+    for i in closest_k_ind:
+        closest_k_words.append(vocab_idx2word[i])
+        
+    return closest_k_words
 
 def plot_graphs(num_epochs, train_losses, train_acc, bleu2, bleu3, bleu4,val_meteor):
     plt.figure(figsize=(18,6))
@@ -103,7 +153,7 @@ def train_epoch(train_loader,device,encoder,decoder,enc_optimizer,dec_optimizer,
         loss = criterion(batch_scores, batch_targets)
         # Backward and optimize
         loss.backward()
-        tqdm.write(_term_move_up()+str(loss.item()))
+#         tqdm.write(_term_move_up()+str(loss.item()))
 
         dec_optimizer.step()
         #train pretrained stuff only after the first epoch
@@ -162,7 +212,7 @@ def val_epoch(val_loader,device,encoder,decoder,vocab,epoch,enc_scheduler=None,d
         temp_meteor = 0
         for i in range(len(pred_corpus)):
             temp_meteor += meteor_score.meteor_score(meteor_reference[i], meteor_hypothesis[i], alpha=0.85, beta=0.2, gamma=0.6) #meteor
-        meteor += temp_meteor/len(pred_corpus)
+        meteor += temp_meteor/len(pred_corpus)       
     
     bleu2 = bleu2/(idx+1)
     bleu3 = bleu3/(idx+1)
@@ -172,6 +222,7 @@ def val_epoch(val_loader,device,encoder,decoder,vocab,epoch,enc_scheduler=None,d
 #     print("bleu2",bleu2/(idx+1))
 #     print("bleu3",bleu3/(idx+1))
 #     print("bleu4",bleu4/(idx+1))
+
 
     return bleu2,bleu3,bleu4,meteor
 
@@ -240,7 +291,7 @@ def main(args):
     criterion = nn.CrossEntropyLoss()
 
     # Train the models
-    num_epochs = 5
+    num_epochs = 2
     view_train_captions = False # View train captions
     view_val_captions = False # View val captions
 
@@ -276,8 +327,17 @@ def main(args):
             print("Weights saved at epoch {}".format(epoch))
 
         print("Epoch: {}, Train Loss: {:.5f}, Train Acc: {:.3f}, Val Bleu2: {:.3f}, Val Bleu3: {:.3f}, Val Bleu4: {:.3f}, Val Meteor: {:.3f}".format(epoch, average_train_loss, average_train_acc, bleu2, bleu3, bleu4,meteor))
-
-    plot_graphs(num_epochs, train_losses, train_acc,val_bleu2,val_bleu3,val_bleu4,val_meteor)
+    
+    # Plot graphs of losses and metrics
+    plot_graphs(num_epochs, train_losses, train_acc,val_bleu2,val_bleu3,val_bleu4,val_meteor)    
+    
+    # Print closest k words to analogy
+    closest_k_words = cosine_similarity_analogy(decoder,vocab,y1='man',y2='woman',x2='girl',topk=3)  
+    print(closest_k_words)
+    
+    # Print closest k words to word
+    closest_k_words = cosine_similarity(decoder,vocab,x1='man',topk=3)  
+    print(closest_k_words)
 
 
 if __name__ == '__main__':
@@ -298,4 +358,3 @@ if __name__ == '__main__':
     args = parser.parse_args(args=[])
     print(args)
     main(args)
-
