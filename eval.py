@@ -47,3 +47,10 @@ def evaluate(encoder_model_path,decoder_model_path):
     print(f'Bleu3 score:{bleu3}')
     print(f'Bleu4 score:{bleu4}')
     print(f'Meteor score:{meteor}')
+
+if __name__ == '__main__':
+    pass
+    # print("Experiment 1")
+    # evaluate('./weights/encoder_weights_epoch2_loss6.82144.pth','./weights/decoder_weights_epoch2_loss6.82144.pth')
+    # print("Experiment 2")
+    # evaluate('./weights/g_encoder_weights_epoch4_bleu0.24715.pth','./weights/g_decoder_weights_epoch4_bleu0.24715.pth')
