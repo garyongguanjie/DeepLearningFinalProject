@@ -55,7 +55,7 @@ wget -c "https://sutdapac-my.sharepoint.com/:u:/g/personal/gary_ong_mymail_sutd_
 unzip weights.zip
 ```
 ## Deploy GUI
-Ensure [final weights](#final-weights) are downloaded into `./weights` folder and binary vocab dictionary is built into `./data` folder \
+Ensure [final weights](#final-weights) are downloaded into `./weights` folder and [binary vocab dictionary](#how-to-train) is built into `./data` folder \
 Ensure required libraries are installed
 ```
 python gui.py
