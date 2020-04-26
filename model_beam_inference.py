@@ -255,7 +255,7 @@ class DecoderRNN(nn.Module):
                         for bw in range(len(top_value_list)): # length of top_value_list is the same as beam_width
                             node = int(np.ceil((top_value_list[bw].item() + 1) / beam_width) - 1)
                             # 1) probabilities --> only need values from 1 timestep before
-                            pred_values[:,bw] = top_preds_values_expanded[0,top_value_list[bw].item()] # HERE, WE ASSUME THERE IS JUST BATCH_SIZE OF 1 FOR SIMPLICITY
+                            pred_values[:,bw] = top_preds_values_expanded[0,top_value_list[bw].item()]
                             # 2) indices
                             pred_indices[:,bw,t] = top_preds_indices_expanded[:,top_value_list[bw].item()]
                             # 3) hidden and cell states --> save only the chosen ones --> only need values from 1 timestep before
@@ -270,15 +270,15 @@ class DecoderRNN(nn.Module):
                         break
 
                 # check for <end> token
-                current_indices = pred_indices[0,:,t].tolist() # HERE, WE ASSUME THERE IS JUST BATCH_SIZE OF 1 FOR SIMPLICITY
+                current_indices = pred_indices[0,:,t].tolist()
                 if 2 in current_indices:
-                    lengths[0] = t + 1 # HERE, WE ASSUME THERE IS JUST BATCH_SIZE OF 1 FOR SIMPLICITY
+                    lengths[0] = t + 1
                     end_node = (t, current_indices.index(2))
                     break
 
             # check if <end> token was not reached
-            if int(lengths[0].item()) == 0: # HERE, WE ASSUME THERE IS JUST BATCH_SIZE OF 1 FOR SIMPLICITY
-                lengths[0] = max_seq_length # HERE, WE ASSUME THERE IS JUST BATCH_SIZE OF 1 FOR SIMPLICITY
+            if int(lengths[0].item()) == 0:
+                lengths[0] = max_seq_length
                 end_node = (max_seq_length - 1, np.argmax(pred_indices[0,:,t].tolist()))
 
             # Crawl backwards through path_dict to get best path
