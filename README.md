@@ -1,11 +1,5 @@
 # DeepLearningFinalProject
 Coco2014 image captioning with visual attention
-# Deploy gui
-Ensure [final weights](#final-weights) are downloaded into `./weights` folder
-```
-pip install -r requirements.txt
-python gui.py
-```
 ## Architecture
 Almost the same as paper in [show attend and tell](https://arxiv.org/abs/1502.03044).\
 Image resize to 224x224 no crop.\
@@ -59,4 +53,10 @@ Download weights from first attempt
 ```
 wget -c "https://sutdapac-my.sharepoint.com/:u:/g/personal/gary_ong_mymail_sutd_edu_sg/EUE8VQN6j7dNrRyhPLoCVFkBXYyRoQgcicrRQM_PhxYslg?e=xS0idk&download=1" -O weights.zip
 unzip weights.zip
+```
+## Deploy GUI
+Ensure [final weights](#final-weights) are downloaded into `./weights` folder and binary vocab dictionary is built into `./data` folder
+Ensure required libraries are installed
+```
+python gui.py
 ```
