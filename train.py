@@ -30,20 +30,29 @@ def cosine_similarity_analogy(decoder,vocab,y1,y2,x2,topk=3):
     embedding_matrix = decoder.embed.weight.cpu().detach().numpy()
     
     # Get embeddings of chosen words
-    y1 = np.expand_dims(embedding_matrix[vocab_word2idx[y1]], axis=0)
-    y2 = np.expand_dims(embedding_matrix[vocab_word2idx[y2]], axis=0)
-    x2 = np.expand_dims(embedding_matrix[vocab_word2idx[x2]], axis=0)
+    y1_emb = np.expand_dims(embedding_matrix[vocab_word2idx[y1]], axis=0)
+    y2_emb = np.expand_dims(embedding_matrix[vocab_word2idx[y2]], axis=0)
+    x2_emb = np.expand_dims(embedding_matrix[vocab_word2idx[x2]], axis=0)
     
-    x1 = y1 - y2 + x2
+    x1 = y1_emb - y2_emb + x2_emb
     
     # Calculate cosine similarity
     cos_sim = sklearn.metrics.pairwise.cosine_similarity(x1, embedding_matrix)
     
     # Return topk closest words
-    closest_k_ind = cos_sim[0].argsort()[-topk:][::-1]
+    closest_k_ind = cos_sim[0].argsort()[-20:][::-1]
     closest_k_words = []
-    for i in closest_k_ind:
-        closest_k_words.append(vocab_idx2word[i])
+    count = 0    
+    for i in closest_k_ind:        
+        # Ignore input vectors
+        if vocab_idx2word[i] == y1 or vocab_idx2word[i] == y2 or vocab_idx2word[i] == x2:
+            continue
+        closest_k_words.append([vocab_idx2word[i], cos_sim[0][i]])
+        
+        # Break if reaches topk
+        count += 1
+        if count == topk:
+            break
         
     return closest_k_words
 
