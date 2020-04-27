@@ -341,11 +341,15 @@ def main(args):
     plot_graphs(num_epochs, train_losses, train_acc,val_bleu2,val_bleu3,val_bleu4,val_meteor)    
     
     # Print closest k words to analogy
-    closest_k_words = cosine_similarity_analogy(decoder,vocab,y1='man',y2='woman',x2='girl',topk=3)  
-    print(closest_k_words)
+    print(cosine_similarity_analogy(decoder,vocab,y1='man',y2='woman',x2='girl',topk=3)) 
+    print(cosine_similarity_analogy(decoder,vocab,y1='beef',y2='cow',x2='pig',topk=3)) 
+    print(cosine_similarity_analogy(decoder,vocab,y1='woman',y2='man',x2='businessman',topk=3)) 
+    print(cosine_similarity_analogy(decoder,vocab,y1='phone',y2='laptop',x2='macbook',topk=3))
+    print(cosine_similarity_analogy(decoder,vocab,y1='man',y2='woman',x2='daughter',topk=3))
+    print(cosine_similarity_analogy(decoder,vocab,y1='u.s.',y2='england',x2='london',topk=3))
     
     # Print closest k words to word
-    closest_k_words = cosine_similarity(decoder,vocab,x1='man',topk=3)  
+    closest_k_words = cosine_similarity(decoder,vocab,x1='holiday',topk=3)  
     print(closest_k_words)
 
 
