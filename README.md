@@ -71,7 +71,7 @@ Decoder OneCycleLr initial lr 0.004 maxlr = 0.1\
 Bleu4 score:24.49\
 Download final weights
 ```
-wget -c "https://sutdapac-my.sharepoint.com/:u:/g/personal/gary_ong_mymail_sutd_edu_sg/EZX0t0yLy4tOh0tteU5HuFMBUyu7rPe-EdxL-irWGDzn6w?e=RXjhOb" -O weights_3.zip
+wget -c "https://sutdapac-my.sharepoint.com/:u:/g/personal/gary_ong_mymail_sutd_edu_sg/EZX0t0yLy4tOh0tteU5HuFMBUyu7rPe-EdxL-irWGDzn6w?e=RXjhOb&download=1" -O weights_3.zip
 ```
 ### First try Weights
 3 epochs\
