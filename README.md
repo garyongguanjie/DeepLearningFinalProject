@@ -49,7 +49,6 @@ python train.py --vocab_path VOCAB_PATH --train_img_path TRAIN_IMG_PATH --val_im
 ```
 ## Final Weights
 5 epochs\
-Glove embeddings used\
 Optimizer:\
 Encoder SGD momentum=0.9 weight_decay=5e-5 \
 Decoder SGD momentum=0.9,weight_decay=1e-7 \
@@ -60,6 +59,19 @@ Bleu4 score:24.71\
 Download final weights
 ```
 wget -c "https://sutdapac-my.sharepoint.com/:u:/g/personal/gary_ong_mymail_sutd_edu_sg/EUpurGS1mXxAg38s8lkAUb8BF80pzSB_Su6TQ6cbCBYXxw?e=SqWtLN&download=1" -O final_weights.zip
+```
+## Weights with glove embeddings finetuned
+5 epochs\
+Optimizer:\
+Encoder SGD momentum=0.9 weight_decay=5e-5 \
+Decoder SGD momentum=0.9,weight_decay=1e-7 \
+Scheduler \
+Encoder OneCycleLR initial lr 0.0002 maxlr = 0.005 \
+Decoder OneCycleLr initial lr 0.004 maxlr = 0.1\
+Bleu4 score:24.49\
+Download final weights
+```
+wget -c "https://sutdapac-my.sharepoint.com/:u:/g/personal/gary_ong_mymail_sutd_edu_sg/EZX0t0yLy4tOh0tteU5HuFMBUyu7rPe-EdxL-irWGDzn6w?e=RXjhOb" -O weights_3.zip
 ```
 ### First try Weights
 3 epochs\
