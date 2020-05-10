@@ -43,7 +43,7 @@ Download Glove embeddings
 ```
 wget -c "https://sutdapac-my.sharepoint.com/:u:/g/personal/gary_ong_mymail_sutd_edu_sg/EYRfz8CJmNFEqW9FtA6dTRABzhWQuTNubo6j_mzfKL1tEg?e=Tdm2eb&download=1" -O glove_embeddings.pth
 ```
-Make new embeddings with our vocab size
+Make new embeddings with your custom vocab.pkl (if necessary)
 ```
 python make_embeddings.py
 ```
