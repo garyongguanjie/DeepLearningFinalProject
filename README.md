@@ -43,6 +43,10 @@ Download Glove embeddings
 ```
 wget -c "https://sutdapac-my.sharepoint.com/:u:/g/personal/gary_ong_mymail_sutd_edu_sg/EYRfz8CJmNFEqW9FtA6dTRABzhWQuTNubo6j_mzfKL1tEg?e=Tdm2eb&download=1" -O glove_embeddings.pth
 ```
+Make new embeddings with our vocab size
+```
+python make_embeddings.py
+```
 To train
 ```
 python train.py --vocab_path VOCAB_PATH --train_img_path TRAIN_IMG_PATH --val_img_path VAL_IMG_PATH --train_json_path TRAIN_JSON_PATH --val_json_path VAL_JSON_PATH --glove_embed_path GLOVE_EMBED_PATH
@@ -91,6 +95,6 @@ unzip weights.zip
 Ensure [final weights](#final-weights) are downloaded into `./weights` folder and [binary vocab dictionary](#how-to-train) is built into `./data` folder \
 Ensure required libraries are installed
 ```
-python gui.py
+python gui.py --vocab_path /path/to/vocab.pkl --encoder_weight_path /path/to/encoder_weights.pth --decoder_weight_path /path/to/decoder_weights.pth
 ```
 

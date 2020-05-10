@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 import cv2
+import argparse
 
 def transform_image(image, img_type):
     """
@@ -44,8 +45,15 @@ def get_attention(image, result, attention_plot):
         attention_list.append(Image.fromarray(combined_img))
     return attention_list
 
+# Get user arguments
+parser = argparse.ArgumentParser()
+parser.add_argument('--vocab_path')
+parser.add_argument('--encoder_weight_path')
+parser.add_argument('--decoder_weight_path')
+args = parser.parse_args()
+
 # Initialise models
-VOCAB_PATH = './data/vocab.pkl'
+VOCAB_PATH = args.vocab_path
 with open(VOCAB_PATH, 'rb') as f:
     vocab = pickle.load(f)
 image_dim = 2048
@@ -56,10 +64,10 @@ vocab_size = len(vocab)
 #for gui use cpu only
 device = torch.device("cpu") 
 encoder = CNNfull(pretrained=False)
-encoder.load_state_dict(torch.load('./weights/g_encoder_weights_epoch4_bleu0.248.pth', map_location=torch.device('cpu')))
+encoder.load_state_dict(torch.load(args.encoder_weight_path, map_location=torch.device('cpu')))
 encoder.eval()
-decoder = DecoderRNN(image_dim, embed_size, hidden_size, vocab_size,device=device)
-decoder.load_state_dict(torch.load('./weights/g_decoder_weights_epoch4_bleu0.248.pth', map_location=torch.device('cpu')))
+decoder = DecoderRNN(image_dim, embed_size, hidden_size, vocab_size, device=device)
+decoder.load_state_dict(torch.load(args.decoder_weight_path, map_location=torch.device('cpu')))
 decoder.eval()
 
 app = Flask(__name__)
